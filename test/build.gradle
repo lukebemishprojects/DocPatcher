@@ -1,0 +1,31 @@
+plugins {
+    id 'dev.lukebemish.docpatcher'
+    id 'java'
+}
+
+group = 'dev.lukebemish'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+
+    maven {
+        url "https://libraries.minecraft.net"
+    }
+}
+
+configurations {
+    original
+}
+
+dependencies {
+    original('com.mojang:datafixerupper:6.0.8:sources') {
+        transitive = false
+    }
+}
+
+docPatcher.diff {
+    clean = 'clean'
+    modified = 'modified'
+    source = configurations.original
+}

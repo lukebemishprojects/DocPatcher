@@ -1,0 +1,29 @@
+plugins {
+    id 'java-gradle-plugin'
+}
+
+group = 'dev.lukebemish'
+version = '1.0-SNAPSHOT'
+
+java {
+    // I don't feel like dealing with old java...
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
+    withSourcesJar()
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compileOnly 'org.jetbrains:annotations:24.0.1'
+}
+
+gradlePlugin {
+    plugins {
+        docPatcher {
+            id = 'dev.lukebemish.docpatcher'
+            implementationClass = 'dev.lukebemish.docpatcher.impl.DocPatcherPlugin'
+        }
+    }
+}
