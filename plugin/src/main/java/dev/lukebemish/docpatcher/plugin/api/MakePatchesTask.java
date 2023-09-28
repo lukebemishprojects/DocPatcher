@@ -1,7 +1,6 @@
 package dev.lukebemish.docpatcher.plugin.api;
 
 import dev.lukebemish.docpatcher.patcher.impl.SpoonVisitor;
-import dev.lukebemish.docpatcher.patcher.impl.Utils;
 import net.neoforged.javadoctor.io.gson.GsonJDocIO;
 import net.neoforged.javadoctor.spec.ClassJavadoc;
 import org.gradle.api.DefaultTask;
@@ -55,7 +54,7 @@ public abstract class MakePatchesTask extends DefaultTask {
         launcher.getEnvironment().setNoClasspath(true);
         launcher.getEnvironment().setCommentEnabled(true);
         launcher.getEnvironment().setIgnoreSyntaxErrors(true);
-        launcher.getEnvironment().setComplianceLevel(javaVersion);
+        launcher.getEnvironment().setComplianceLevel(getJavaVersion());
         return launcher;
     }
 
@@ -96,7 +95,7 @@ public abstract class MakePatchesTask extends DefaultTask {
 
                     ClassJavadoc javadoc = visitor.visit(clean, modified);
 
-                    if (!Utils.isEmpty(javadoc)) {
+                    if (javadoc != null) {
                         Path outputPath = getOutputDirectory().get().getAsFile().toPath().resolve(className + ".docpatcher.json");
                         Files.createDirectories(outputPath.getParent());
                         Files.writeString(outputPath, GsonJDocIO.GSON.toJson(javadoc));

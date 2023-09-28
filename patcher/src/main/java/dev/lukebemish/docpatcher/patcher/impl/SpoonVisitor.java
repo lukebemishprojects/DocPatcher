@@ -72,7 +72,10 @@ public class SpoonVisitor {
             if (modifiedMethod == null) {
                 throw new RuntimeException("Modified method is null for " + desc + " in " + modified.getQualifiedName());
             }
-            methods.put(desc, visit(cleanMethod, modifiedMethod));
+            var visited = visit(cleanMethod, modifiedMethod);
+            if (visited != null) {
+                methods.put(desc, visited);
+            }
         }
 
         for (String desc : Sets.union(cleanFields.keySet(), modifiedFields.keySet())) {
@@ -84,7 +87,10 @@ public class SpoonVisitor {
             if (modifiedField == null) {
                 throw new RuntimeException("Modified field is null for " + desc + " in " + modified.getQualifiedName());
             }
-            fields.put(desc, visit(cleanField, modifiedField));
+            var visited = visit(cleanField, modifiedField);
+            if (visited != null) {
+                fields.put(desc, visited);
+            }
         }
 
         Map<String, CtType<?>> cleanInnerClasses = clean.getNestedTypes().stream().filter(t -> !t.isAnonymous() && !t.isLocalType()).collect(Collectors.toMap(CtType::getSimpleName, Function.identity()));
@@ -101,11 +107,17 @@ public class SpoonVisitor {
             if (modifiedInnerClass == null) {
                 throw new RuntimeException("Modified inner class is null for " + desc + " in " + modified.getQualifiedName());
             }
-            innerClasses.put(desc, visit(cleanInnerClass, modifiedInnerClass));
+            var visited = visit(cleanInnerClass, modifiedInnerClass);
+            if (visited != null) {
+                innerClasses.put(desc, visited);
+            }
         }
 
         modified.getNestedTypes();
 
+        if (classJavadocEntry == null && methods.isEmpty() && fields.isEmpty() && innerClasses.isEmpty()) {
+            return null;
+        }
         return new ClassJavadoc(classJavadocEntry, methods.isEmpty() ? null : methods, fields.isEmpty() ? null : fields, innerClasses.isEmpty() ? null : innerClasses);
     }
 
