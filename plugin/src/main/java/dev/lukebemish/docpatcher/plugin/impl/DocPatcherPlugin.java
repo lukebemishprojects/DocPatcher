@@ -1,6 +1,6 @@
-package dev.lukebemish.docpatcher.impl;
+package dev.lukebemish.docpatcher.plugin.impl;
 
-import dev.lukebemish.docpatcher.api.DocPatcherExtension;
+import dev.lukebemish.docpatcher.plugin.api.DocPatcherExtension;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.jetbrains.annotations.NotNull;

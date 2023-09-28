@@ -1,4 +1,4 @@
-package dev.lukebemish.docpatcher.api;
+package dev.lukebemish.docpatcher.plugin.api;
 
 import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;

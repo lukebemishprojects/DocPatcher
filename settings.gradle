@@ -1,2 +1,3 @@
-rootProject.name = 'DocPatcher'
+rootProject.name = 'docpatcher'
 
+include 'plugin', 'patcher'

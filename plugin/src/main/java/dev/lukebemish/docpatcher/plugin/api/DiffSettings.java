@@ -1,4 +1,4 @@
-package dev.lukebemish.docpatcher.api;
+package dev.lukebemish.docpatcher.plugin.api;
 
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
@@ -11,17 +11,35 @@ import org.gradle.api.tasks.SourceSetContainer;
 public class DiffSettings {
     private String clean;
     private String modified;
+    private String patches;
     private Configuration source;
     private final DirectoryProperty cleanProperty;
     private final DirectoryProperty modifiedProperty;
-    private final Property<SourceSet> sourceSetProperty;
+    private final DirectoryProperty patchesProperty;
+    private final Property<SourceSet> cleanSourceSetProperty;
+    private final Property<SourceSet> modifiedSourceSetProperty;
+    private final Property<SourceSet> patchesSourceSetProperty;
     private final Project project;
 
     public DiffSettings(ObjectFactory objectFactory, Project project) {
         this.cleanProperty = objectFactory.directoryProperty();
         this.modifiedProperty = objectFactory.directoryProperty();
-        this.sourceSetProperty = objectFactory.property(SourceSet.class);
+        this.patchesProperty = objectFactory.directoryProperty();
+        this.cleanSourceSetProperty = objectFactory.property(SourceSet.class);
+        this.modifiedSourceSetProperty = objectFactory.property(SourceSet.class);
+        this.patchesSourceSetProperty = objectFactory.property(SourceSet.class);
         this.project = project;
+    }
+
+    public String getPatches() {
+        if (patches == null)
+            throw new RuntimeException("Patches source set name not set");
+        return patches;
+    }
+
+    public void setPatches(String patches) {
+        this.patches = patches;
+        this.patchesProperty.convention(project.getLayout().getProjectDirectory().dir("src").dir(patches).dir("resources"));
     }
 
     public String getModified() {
@@ -62,13 +80,30 @@ public class DiffSettings {
     public DirectoryProperty getModifiedDirectory() {
         return modifiedProperty;
     }
-    public Property<SourceSet> getSourceSet() {
-        return sourceSetProperty;
+    public DirectoryProperty getPatchesDirectory() {
+        return patchesProperty;
+    }
+    public Property<SourceSet> getCleanSourceSet() {
+        return cleanSourceSetProperty;
+    }
+    public Property<SourceSet> getModifiedSourceSet() {
+        return modifiedSourceSetProperty;
+    }
+    public Property<SourceSet> getPatchesSourceSet() {
+        return patchesSourceSetProperty;
     }
 
     void makeTasks(Project project) {
         var sourceSets = (SourceSetContainer)project.getExtensions().getByName("sourceSets");
-        SourceSet sourceSet = getSourceSet().getOrElse(sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME));
+        SourceSet cleanSourceSet = getCleanSourceSet().getOrNull();
+        if (cleanSourceSet == null)
+            cleanSourceSet = sourceSets.maybeCreate(getClean());
+        SourceSet modifiedSourceSet = getModifiedSourceSet().getOrNull();
+        if (modifiedSourceSet == null)
+            modifiedSourceSet = sourceSets.maybeCreate(getModified());
+        SourceSet patchesSourceSet = getPatchesSourceSet().getOrNull();
+        if (patchesSourceSet == null)
+            patchesSourceSet = sourceSets.maybeCreate(getPatches());
 
         project.getTasks().register(getClean()+"ExtractFromSources", DocsExtractTask.class, task -> {
             task.dependsOn(getSource());
@@ -81,8 +116,20 @@ public class DiffSettings {
             task.getSources().from(getSource());
             task.getOutputDirectory().set(modifiedProperty);
         });
-        sourceSet.java(src -> {
-            src.srcDir(modified);
+        project.getTasks().register(getPatches()+"GeneratePatches", MakePatchesTask.class, task -> {
+            task.getClean().set(cleanProperty);
+            task.getModified().set(modifiedProperty);
+            task.getOutputDirectory().set(patchesProperty);
+        });
+
+        cleanSourceSet.java(src -> {
+            src.srcDir(cleanProperty);
+        });
+        modifiedSourceSet.java(src -> {
+            src.srcDir(modifiedProperty);
+        });
+        patchesSourceSet.resources(src -> {
+            src.srcDir(patchesProperty);
         });
     }
 }

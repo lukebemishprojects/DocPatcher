@@ -1,4 +1,4 @@
-package dev.lukebemish.docpatcher.api;
+package dev.lukebemish.docpatcher.plugin.api;
 
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.ConfigurableFileCollection;

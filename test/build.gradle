@@ -3,6 +3,10 @@ plugins {
     id 'java'
 }
 
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
+}
+
 group = 'dev.lukebemish'
 version = '1.0-SNAPSHOT'
 
@@ -27,5 +31,6 @@ dependencies {
 docPatcher.diff {
     clean = 'clean'
     modified = 'modified'
+    patches = 'patches'
     source = configurations.original
 }

@@ -1,0 +1,16 @@
+plugins {
+    id 'java-gradle-plugin'
+}
+
+dependencies {
+    implementation project(':patcher')
+}
+
+gradlePlugin {
+    plugins {
+        docPatcher {
+            id = 'dev.lukebemish.docpatcher'
+            implementationClass = 'dev.lukebemish.docpatcher.plugin.impl.DocPatcherPlugin'
+        }
+    }
+}
