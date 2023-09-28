@@ -1,8 +1,11 @@
 package dev.lukebemish.docpatcher.plugin.api;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import dev.lukebemish.docpatcher.patcher.impl.SpoonVisitor;
 import net.neoforged.javadoctor.io.gson.GsonJDocIO;
 import net.neoforged.javadoctor.spec.ClassJavadoc;
+import net.neoforged.javadoctor.spec.JavadocEntry;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
 import org.gradle.api.file.DirectoryProperty;
@@ -98,7 +101,7 @@ public abstract class MakePatchesTask extends DefaultTask {
                     if (javadoc != null) {
                         Path outputPath = getOutputDirectory().get().getAsFile().toPath().resolve(className + ".docpatcher.json");
                         Files.createDirectories(outputPath.getParent());
-                        Files.writeString(outputPath, GsonJDocIO.GSON.toJson(javadoc));
+                        Files.writeString(outputPath, GSON.toJson(javadoc));
                     }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -106,4 +109,11 @@ public abstract class MakePatchesTask extends DefaultTask {
             }
         });
     }
+
+    private static final Gson GSON = new GsonBuilder()
+        .disableHtmlEscaping()
+        .registerTypeAdapter(ClassJavadoc.class, GsonJDocIO.JAVADOC_READER)
+        .registerTypeAdapter(JavadocEntry.class, GsonJDocIO.ENTRY_READER)
+        .setPrettyPrinting()
+        .create();
 }

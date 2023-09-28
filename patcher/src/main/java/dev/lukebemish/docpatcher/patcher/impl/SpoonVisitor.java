@@ -41,7 +41,7 @@ public class SpoonVisitor {
                 var typeParameters = modified.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
 
                 if (result.contentDiff() != null || !result.tags().isEmpty()) {
-                    classJavadocEntry = new JavadocEntry(result.contentDiff(), result.tags().isEmpty() ? null : result.tags(), parameters, typeParameters);
+                    classJavadocEntry = new JavadocEntry(result.contentDiff(), result.tags().isEmpty() ? null : result.tags(), (parameters == null || parameters.length == 0) ? null : parameters, typeParameters.length == 0 ? null : typeParameters);
                 }
             }
         }
@@ -145,7 +145,7 @@ public class SpoonVisitor {
                 }
 
                 if (result.contentDiff() != null || !result.tags().isEmpty()) {
-                    javadocEntry = new JavadocEntry(result.contentDiff(), result.tags().isEmpty() ? null : result.tags(), parameters, typeParameters);
+                    javadocEntry = new JavadocEntry(result.contentDiff(), result.tags().isEmpty() ? null : result.tags(), parameters.length == 0 ? null : parameters, (typeParameters == null || typeParameters.length == 0) ? null : typeParameters);
                 }
             }
         }
