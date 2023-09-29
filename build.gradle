@@ -1,9 +1,10 @@
 plugins {
     id 'java-gradle-plugin'
+    id 'com.gradle.plugin-publish' version '1.2.1'
 }
 
 group = 'dev.lukebemish.docpatcher'
-version = '1.0-SNAPSHOT'
+version = '1.0.0'
 
 java {
     // I don't feel like dealing with old java...
@@ -27,10 +28,19 @@ dependencies {
 }
 
 gradlePlugin {
+    website = 'https://github.com/lukebemishprojects/DocPatcher'
+    vcsUrl = 'https://github.com/lukebemishprojects/DocPatcher.git'
     plugins {
         docPatcher {
             id = 'dev.lukebemish.docpatcher'
+            displayName = 'DocPatcher'
+            description = 'Generates and applies javadoc patches to source files using javadoctor and spoon'
             implementationClass = 'dev.lukebemish.docpatcher.plugin.impl.DocPatcherPlugin'
         }
     }
+}
+
+if (System.getenv('GRADLE_PLUGIN_KEY')) {
+    ext['gradle.publish.key'] = System.getenv('GRADLE_PLUGIN_KEY')
+    ext['gradle.publish.secret'] = System.getenv('GRADLE_PLUGIN_SECRET')
 }
