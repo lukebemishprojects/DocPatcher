@@ -1,5 +1,6 @@
 package dev.lukebemish.docpatcher.plugin.api;
 
+import org.apache.commons.lang3.StringUtils;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.file.DirectoryProperty;
@@ -12,28 +13,44 @@ public class DiffSettings {
     private String clean;
     private String modified;
     private String patches;
+    private String output;
     private Configuration source;
     private final DirectoryProperty cleanProperty;
     private final DirectoryProperty modifiedProperty;
     private final DirectoryProperty patchesProperty;
+    private final DirectoryProperty outputProperty;
     private final Property<SourceSet> cleanSourceSetProperty;
     private final Property<SourceSet> modifiedSourceSetProperty;
     private final Property<SourceSet> patchesSourceSetProperty;
+    private final Property<SourceSet> outputSourceSetProperty;
     private final Project project;
 
     public DiffSettings(ObjectFactory objectFactory, Project project) {
         this.cleanProperty = objectFactory.directoryProperty();
         this.modifiedProperty = objectFactory.directoryProperty();
         this.patchesProperty = objectFactory.directoryProperty();
+        this.outputProperty = objectFactory.directoryProperty();
         this.cleanSourceSetProperty = objectFactory.property(SourceSet.class);
         this.modifiedSourceSetProperty = objectFactory.property(SourceSet.class);
         this.patchesSourceSetProperty = objectFactory.property(SourceSet.class);
+        this.outputSourceSetProperty = objectFactory.property(SourceSet.class);
         this.project = project;
+    }
+
+    public String getOutput() {
+        if (output == null)
+            throw new RuntimeException("Output name not set");
+        return output;
+    }
+
+    public void setOutput(String output) {
+        this.output = output;
+        this.outputProperty.convention(project.getLayout().getProjectDirectory().dir("src").dir(output).dir("java"));
     }
 
     public String getPatches() {
         if (patches == null)
-            throw new RuntimeException("Patches source set name not set");
+            throw new RuntimeException("Patches name not set");
         return patches;
     }
 
@@ -44,7 +61,7 @@ public class DiffSettings {
 
     public String getModified() {
         if (modified == null)
-            throw new RuntimeException("Modified source set name not set");
+            throw new RuntimeException("Modified name not set");
         return modified;
     }
 
@@ -55,7 +72,7 @@ public class DiffSettings {
 
     public String getClean() {
         if (clean == null)
-            throw new RuntimeException("Modified source set name not set");
+            throw new RuntimeException("Clean name not set");
         return clean;
     }
 
@@ -83,6 +100,9 @@ public class DiffSettings {
     public DirectoryProperty getPatchesDirectory() {
         return patchesProperty;
     }
+    public DirectoryProperty getOutputDirectory() {
+        return outputProperty;
+    }
     public Property<SourceSet> getCleanSourceSet() {
         return cleanSourceSetProperty;
     }
@@ -91,6 +111,9 @@ public class DiffSettings {
     }
     public Property<SourceSet> getPatchesSourceSet() {
         return patchesSourceSetProperty;
+    }
+    public Property<SourceSet> getOutputSourceSet() {
+        return outputSourceSetProperty;
     }
 
     void makeTasks(Project project) {
@@ -104,22 +127,31 @@ public class DiffSettings {
         SourceSet patchesSourceSet = getPatchesSourceSet().getOrNull();
         if (patchesSourceSet == null)
             patchesSourceSet = sourceSets.maybeCreate(getPatches());
+        SourceSet outputSourceSet = getOutputSourceSet().getOrNull();
+        if (outputSourceSet == null)
+            outputSourceSet = sourceSets.maybeCreate(getOutput());
 
-        project.getTasks().register(getClean()+"ExtractFromSources", DocsExtractTask.class, task -> {
+        var cleanTask = project.getTasks().register(getClean()+"ExtractFromSources", DocsExtractTask.class, task -> {
             task.dependsOn(getSource());
             task.getSources().from(getSource());
-            task.getOutputDirectory().set(cleanProperty);
+            task.getOutputDirectory().set(getCleanDirectory());
             task.getReadOnly().set(true);
         });
         project.getTasks().register(getModified()+"ExtractFromSources", DocsExtractTask.class, task -> {
             task.dependsOn(getSource());
             task.getSources().from(getSource());
-            task.getOutputDirectory().set(modifiedProperty);
+            task.getOutputDirectory().set(getModifiedDirectory());
         });
         project.getTasks().register(getPatches()+"GeneratePatches", MakePatchesTask.class, task -> {
-            task.getClean().set(cleanProperty);
-            task.getModified().set(modifiedProperty);
-            task.getOutputDirectory().set(patchesProperty);
+            task.getClean().set(getCleanDirectory());
+            task.getModified().set(getModifiedDirectory());
+            task.getOutputDirectory().set(getPatchesDirectory());
+        });
+        project.getTasks().register(getPatches()+ StringUtils.capitalize(getOutput())+"ApplyPatches", ApplyPatchesTask.class, task -> {
+            task.getPatches().set(getPatchesDirectory());
+            task.getSource().set(getCleanDirectory());
+            task.getOutputDirectory().set(getOutputDirectory());
+            task.dependsOn(cleanTask);
         });
 
         cleanSourceSet.java(src -> {
@@ -130,6 +162,9 @@ public class DiffSettings {
         });
         patchesSourceSet.resources(src -> {
             src.srcDir(patchesProperty);
+        });
+        outputSourceSet.java(src -> {
+            src.srcDir(outputProperty);
         });
     }
 }

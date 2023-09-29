@@ -32,5 +32,8 @@ docPatcher.diff {
     clean = 'clean'
     modified = 'modified'
     patches = 'patches'
+    output = 'output'
+    outputSourceSet.set sourceSets.main
+    outputDirectory.set file("build/patched")
     source = configurations.original
 }

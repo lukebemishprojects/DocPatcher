@@ -1,5 +1,5 @@
 dependencies {
-    api 'net.neoforged.javadoctor:injector-spoon:2.0.2'
-    api 'fr.inria.gforge.spoon:spoon-core:10.4.2-beta-4'
+    api 'net.neoforged.javadoctor:injector-spoon:2.0.3'
+    api 'fr.inria.gforge.spoon:spoon-core:10.4.1'
     api 'com.google.guava:guava:32.1.2-jre'
 }

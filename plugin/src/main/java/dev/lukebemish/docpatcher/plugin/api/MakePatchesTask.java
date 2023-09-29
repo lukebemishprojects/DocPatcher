@@ -2,6 +2,8 @@ package dev.lukebemish.docpatcher.plugin.api;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import dev.lukebemish.docpatcher.patcher.impl.Serializer;
 import dev.lukebemish.docpatcher.patcher.impl.SpoonVisitor;
 import net.neoforged.javadoctor.io.gson.GsonJDocIO;
 import net.neoforged.javadoctor.spec.ClassJavadoc;
@@ -101,7 +103,8 @@ public abstract class MakePatchesTask extends DefaultTask {
                     if (javadoc != null) {
                         Path outputPath = getOutputDirectory().get().getAsFile().toPath().resolve(className + ".docpatcher.json");
                         Files.createDirectories(outputPath.getParent());
-                        Files.writeString(outputPath, GSON.toJson(javadoc));
+                        JsonElement json = Serializer.toJson(javadoc);
+                        Files.writeString(outputPath, GSON.toJson(json));
                     }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
