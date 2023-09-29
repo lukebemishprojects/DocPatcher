@@ -1,13 +1,9 @@
 package dev.lukebemish.docpatcher.plugin.api;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
-import dev.lukebemish.docpatcher.patcher.impl.Serializer;
-import dev.lukebemish.docpatcher.patcher.impl.SpoonVisitor;
-import net.neoforged.javadoctor.io.gson.GsonJDocIO;
+import dev.lukebemish.docpatcher.plugin.impl.Utils;
+import dev.lukebemish.docpatcher.plugin.impl.SpoonVisitor;
 import net.neoforged.javadoctor.spec.ClassJavadoc;
-import net.neoforged.javadoctor.spec.JavadocEntry;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
 import org.gradle.api.file.DirectoryProperty;
@@ -55,12 +51,7 @@ public abstract class MakePatchesTask extends DefaultTask {
     }
 
     private Launcher makeLauncher() {
-        final Launcher launcher = new Launcher();
-        launcher.getEnvironment().setNoClasspath(true);
-        launcher.getEnvironment().setCommentEnabled(true);
-        launcher.getEnvironment().setIgnoreSyntaxErrors(true);
-        launcher.getEnvironment().setComplianceLevel(getJavaVersion());
-        return launcher;
+        return Utils.makeLauncher(getJavaVersion());
     }
 
     @TaskAction
@@ -103,8 +94,8 @@ public abstract class MakePatchesTask extends DefaultTask {
                     if (javadoc != null) {
                         Path outputPath = getOutputDirectory().get().getAsFile().toPath().resolve(className + ".docpatcher.json");
                         Files.createDirectories(outputPath.getParent());
-                        JsonElement json = Serializer.toJson(javadoc);
-                        Files.writeString(outputPath, GSON.toJson(json));
+                        JsonElement json = Utils.toJson(javadoc);
+                        Files.writeString(outputPath, Utils.GSON.toJson(json));
                     }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -112,11 +103,4 @@ public abstract class MakePatchesTask extends DefaultTask {
             }
         });
     }
-
-    private static final Gson GSON = new GsonBuilder()
-        .disableHtmlEscaping()
-        .registerTypeAdapter(ClassJavadoc.class, GsonJDocIO.JAVADOC_READER)
-        .registerTypeAdapter(JavadocEntry.class, GsonJDocIO.ENTRY_READER)
-        .setPrettyPrinting()
-        .create();
 }

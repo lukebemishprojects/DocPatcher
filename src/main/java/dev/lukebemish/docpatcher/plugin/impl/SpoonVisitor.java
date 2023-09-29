@@ -1,4 +1,4 @@
-package dev.lukebemish.docpatcher.patcher.impl;
+package dev.lukebemish.docpatcher.plugin.impl;
 
 import com.google.common.collect.Sets;
 import net.neoforged.javadoctor.injector.spoon.JVMSignatureBuilder;
