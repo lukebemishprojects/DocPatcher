@@ -27,6 +27,10 @@ dependencies {
     implementation 'com.google.guava:guava:32.1.2-jre'
 }
 
+processResources {
+    from rootProject.file("LICENSE")
+}
+
 gradlePlugin {
     website = 'https://github.com/lukebemishprojects/DocPatcher'
     vcsUrl = 'https://github.com/lukebemishprojects/DocPatcher.git'
@@ -36,6 +40,7 @@ gradlePlugin {
             displayName = 'DocPatcher'
             description = 'Generates and applies javadoc patches to source files using javadoctor and spoon'
             implementationClass = 'dev.lukebemish.docpatcher.plugin.impl.DocPatcherPlugin'
+            tags.addAll(['javadoc', 'patch'])
         }
     }
 }
