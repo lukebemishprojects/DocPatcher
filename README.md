@@ -2,7 +2,7 @@
 
 DocPatcher is a tool to aid in maintenance of third-party javadocs for java libraries. It uses the the [javadoctor library](https://github.com/neoforged/javadoctor)
 to generate and apply javadoc "patches" to a source. To use, you will need to add the NeoForged maven
-to your plugin repositories in your `settings.gradle` file:
+to your plugin repositories in your `settings.gradle` file, so that javadoctor can be loaded as a dependency:
 
 ```groovy
 pluginManagement {
