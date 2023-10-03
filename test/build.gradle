@@ -36,4 +36,5 @@ docPatcher.diff {
     outputSourceSet.set sourceSets.main
     outputDirectory.set file("build/patched")
     source = configurations.original
+    missedDirectory.set file("build/missed")
 }

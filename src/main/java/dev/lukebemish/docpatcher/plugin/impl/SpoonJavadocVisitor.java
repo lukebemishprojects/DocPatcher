@@ -16,7 +16,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class SpoonVisitor {
+public class SpoonJavadocVisitor {
     public ClassJavadoc visit(CtType<?> clean, CtType<?> modified) {
         var comments = modified.getComments();
         var originalComments = clean.getComments();
@@ -112,8 +112,6 @@ public class SpoonVisitor {
                 innerClasses.put(desc, visited);
             }
         }
-
-        modified.getNestedTypes();
 
         if (classJavadocEntry == null && methods.isEmpty() && fields.isEmpty() && innerClasses.isEmpty()) {
             return null;

@@ -2,7 +2,7 @@ package dev.lukebemish.docpatcher.plugin.api;
 
 import com.google.gson.JsonElement;
 import dev.lukebemish.docpatcher.plugin.impl.Utils;
-import dev.lukebemish.docpatcher.plugin.impl.SpoonVisitor;
+import dev.lukebemish.docpatcher.plugin.impl.SpoonJavadocVisitor;
 import net.neoforged.javadoctor.spec.ClassJavadoc;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
@@ -62,7 +62,7 @@ public abstract class MakePatchesTask extends DefaultTask {
 
         getProject().delete(getOutputDirectory());
 
-        var visitor = new SpoonVisitor();
+        var visitor = new SpoonJavadocVisitor();
 
         getModified().getAsFileTree().visit(fileVisitDetails -> {
             if (!fileVisitDetails.isDirectory() && fileVisitDetails.getFile().getName().endsWith(".java")) {

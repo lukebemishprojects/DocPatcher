@@ -19,6 +19,7 @@ public class DiffSettings {
     private final DirectoryProperty modifiedProperty;
     private final DirectoryProperty patchesProperty;
     private final DirectoryProperty outputProperty;
+    private final DirectoryProperty missedProperty;
     private final Property<SourceSet> cleanSourceSetProperty;
     private final Property<SourceSet> modifiedSourceSetProperty;
     private final Property<SourceSet> patchesSourceSetProperty;
@@ -30,6 +31,7 @@ public class DiffSettings {
         this.modifiedProperty = objectFactory.directoryProperty();
         this.patchesProperty = objectFactory.directoryProperty();
         this.outputProperty = objectFactory.directoryProperty();
+        this.missedProperty = objectFactory.directoryProperty();
         this.cleanSourceSetProperty = objectFactory.property(SourceSet.class);
         this.modifiedSourceSetProperty = objectFactory.property(SourceSet.class);
         this.patchesSourceSetProperty = objectFactory.property(SourceSet.class);
@@ -43,6 +45,9 @@ public class DiffSettings {
         return output;
     }
 
+    /**
+     * The name to use for tasks involving the output source, as well as a default name for the output source set and folder.
+     */
     public void setOutput(String output) {
         this.output = output;
         this.outputProperty.convention(project.getLayout().getProjectDirectory().dir("src").dir(output).dir("java"));
@@ -54,6 +59,9 @@ public class DiffSettings {
         return patches;
     }
 
+    /**
+     * The name to use for tasks involving the patches, as well as a default name for the patches source set and folder.
+     */
     public void setPatches(String patches) {
         this.patches = patches;
         this.patchesProperty.convention(project.getLayout().getProjectDirectory().dir("src").dir(patches).dir("resources"));
@@ -65,6 +73,9 @@ public class DiffSettings {
         return modified;
     }
 
+    /**
+     * The name to use for tasks involving the modified source, as well as a default name for the modified source set and folder.
+     */
     public void setModified(String modified) {
         this.modified = modified;
         this.modifiedProperty.convention(project.getLayout().getProjectDirectory().dir("src").dir(modified).dir("java"));
@@ -76,6 +87,9 @@ public class DiffSettings {
         return clean;
     }
 
+    /**
+     * The name to use for tasks involving the clean source, as well as a default name for the clean source set and folder.
+     */
     public void setClean(String clean) {
         this.clean = clean;
         this.cleanProperty.convention(project.getLayout().getProjectDirectory().dir("src").dir(clean).dir("java"));
@@ -87,34 +101,78 @@ public class DiffSettings {
         return source;
     }
 
+    /**
+     * The configuration to pull clean files from.
+     */
     public void setSource(Configuration source) {
         this.source = source;
     }
 
+    /**
+     * The directory to extract clean files to.
+     */
     public DirectoryProperty getCleanDirectory() {
         return cleanProperty;
     }
+
+    /**
+     * The directory modified files are stored in, for patch generation or application.
+     */
     public DirectoryProperty getModifiedDirectory() {
         return modifiedProperty;
     }
+
+    /**
+     * The directory patches are stored in, for patch generation or application.
+     */
     public DirectoryProperty getPatchesDirectory() {
         return patchesProperty;
     }
+
+    /**
+     * The directory output files are stored in, for patch application.
+     */
     public DirectoryProperty getOutputDirectory() {
         return outputProperty;
     }
+
+    /**
+     * The directory missed patches are placed in during patch application
+     */
+    public DirectoryProperty getMissedDirectory() {
+        return missedProperty;
+    }
+
+    /**
+     * The source set to use for the clean source.
+     */
     public Property<SourceSet> getCleanSourceSet() {
         return cleanSourceSetProperty;
     }
+
+    /**
+     * The source set to use for the modified source.
+     */
     public Property<SourceSet> getModifiedSourceSet() {
         return modifiedSourceSetProperty;
     }
+
+    /**
+     * The source set to use for the patch files source.
+     */
     public Property<SourceSet> getPatchesSourceSet() {
         return patchesSourceSetProperty;
     }
+
+    /**
+     * The source set to use for the output source.
+     */
     public Property<SourceSet> getOutputSourceSet() {
         return outputSourceSetProperty;
     }
+
+    private static final String PREFIX_APPLY = "docPatcherApply";
+    private static final String PREFIX_SETUP = "docPatcherSetup";
 
     void makeTasks(Project project) {
         var sourceSets = (SourceSetContainer)project.getExtensions().getByName("sourceSets");
@@ -131,40 +189,43 @@ public class DiffSettings {
         if (outputSourceSet == null)
             outputSourceSet = sourceSets.maybeCreate(getOutput());
 
-        var cleanTask = project.getTasks().register(getClean()+"ExtractFromSources", DocsExtractTask.class, task -> {
+        var cleanTask = project.getTasks().register(PREFIX_SETUP+StringUtils.capitalize(getClean())+"ExtractFromSources", DocsExtractTask.class, task -> {
             task.dependsOn(getSource());
             task.getSources().from(getSource());
             task.getOutputDirectory().set(getCleanDirectory());
             task.getReadOnly().set(true);
         });
-        project.getTasks().register(getModified()+"ExtractFromSources", DocsExtractTask.class, task -> {
-            task.dependsOn(getSource());
-            task.getSources().from(getSource());
-            task.getOutputDirectory().set(getModifiedDirectory());
-        });
-        project.getTasks().register(getPatches()+"GeneratePatches", MakePatchesTask.class, task -> {
+        project.getTasks().register(PREFIX_APPLY+StringUtils.capitalize(getPatches())+"GeneratePatches", MakePatchesTask.class, task -> {
             task.getClean().set(getCleanDirectory());
             task.getModified().set(getModifiedDirectory());
             task.getOutputDirectory().set(getPatchesDirectory());
         });
-        project.getTasks().register(getPatches()+ StringUtils.capitalize(getOutput())+"ApplyPatches", ApplyPatchesTask.class, task -> {
+        project.getTasks().register(PREFIX_APPLY+StringUtils.capitalize(getOutput())+"ApplyPatches", ApplyPatchesTask.class, task -> {
             task.getPatches().set(getPatchesDirectory());
             task.getSource().set(getCleanDirectory());
             task.getOutputDirectory().set(getOutputDirectory());
             task.dependsOn(cleanTask);
         });
+        var uncheckedApplyTask = project.getTasks().register(PREFIX_SETUP+StringUtils.capitalize(getModified())+"ApplyPatchesUnchecked", ApplyPatchesTask.class, task -> {
+            task.getPatches().set(getPatchesDirectory());
+            task.getSource().set(getCleanDirectory());
+            task.getOutputDirectory().set(getModifiedDirectory());
+            task.dependsOn(cleanTask);
+        });
+        project.getTasks().register(PREFIX_SETUP+StringUtils.capitalize(getModified())+"ApplyPatches", MissedPatchesTask.class, task -> {
+            task.getPatches().set(getPatchesDirectory());
+            task.getSource().set(getModifiedDirectory());
+            task.getOutputDirectory().set(getMissedDirectory());
+            task.dependsOn(uncheckedApplyTask);
+        });
 
-        cleanSourceSet.java(src -> {
-            src.srcDir(cleanProperty);
-        });
-        modifiedSourceSet.java(src -> {
-            src.srcDir(modifiedProperty);
-        });
-        patchesSourceSet.resources(src -> {
-            src.srcDir(patchesProperty);
-        });
-        outputSourceSet.java(src -> {
-            src.srcDir(outputProperty);
-        });
+        cleanSourceSet.java(src ->
+            src.srcDir(cleanProperty));
+        modifiedSourceSet.java(src ->
+            src.srcDir(modifiedProperty));
+        patchesSourceSet.resources(src ->
+            src.srcDir(patchesProperty));
+        outputSourceSet.java(src ->
+            src.srcDir(outputProperty));
     }
 }
