@@ -31,10 +31,17 @@ public class SpoonJavadocVisitor {
         if (!comments.isEmpty()) {
             var javadocComment = comments.get(0);
             if (javadocComment instanceof CtJavaDoc javadoc) {
-                ProcessedJavadoc result = processJavadocs(javadoc, originalJavadoc);
+                String[] parameters = null;
+                if (modified instanceof CtRecord ctRecord) {
+                    parameters = ctRecord.getRecordComponents().stream().map(CtRecordComponent::getSimpleName).toArray(String[]::new);
+                }
+
+                var typeParameters = modified.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
+
+                ProcessedJavadoc result = processJavadocs(javadoc, originalJavadoc, parameters, typeParameters);
 
                 if (result.contentDiff() != null || !result.tags().isEmpty()) {
-                    classJavadocEntry = new JavadocEntry(result.contentDiff(), result.tags().isEmpty() ? null : result.tags(), null, null);
+                    classJavadocEntry = new JavadocEntry(result.contentDiff(), result.tags().isEmpty() ? null : result.tags(), result.parameters, result.typeParameters);
                 }
             }
         }
@@ -126,10 +133,17 @@ public class SpoonJavadocVisitor {
         if (!comments.isEmpty()) {
             var javadocComment = comments.get(0);
             if (javadocComment instanceof CtJavaDoc javadoc) {
-                ProcessedJavadoc result = processJavadocs(javadoc, originalJavadoc);
+                String[] parameters = modified.getParameters().stream().map(CtParameter::getSimpleName).toArray(String[]::new);
+
+                String[] typeParameters = null;
+                if (modified instanceof CtFormalTypeDeclarer formalTypeDeclarer) {
+                    typeParameters = formalTypeDeclarer.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
+                }
+
+                ProcessedJavadoc result = processJavadocs(javadoc, originalJavadoc, parameters, typeParameters);
 
                 if (result.contentDiff() != null || !result.tags().isEmpty()) {
-                    javadocEntry = new JavadocEntry(result.contentDiff(), result.tags().isEmpty() ? null : result.tags(), null, null);
+                    javadocEntry = new JavadocEntry(result.contentDiff(), result.tags().isEmpty() ? null : result.tags(), result.parameters, result.typeParameters);
                 }
             }
         }
@@ -151,7 +165,7 @@ public class SpoonJavadocVisitor {
         if (!comments.isEmpty()) {
             var javadocComment = comments.get(0);
             if (javadocComment instanceof CtJavaDoc javadoc) {
-                ProcessedJavadoc result = processJavadocs(javadoc, originalJavadoc);
+                ProcessedJavadoc result = processJavadocs(javadoc, originalJavadoc, null, null);
 
                 if (result.contentDiff() != null || !result.tags().isEmpty()) {
                     javadocEntry = new JavadocEntry(result.contentDiff(), result.tags().isEmpty() ? null : result.tags(), null, null);
@@ -163,7 +177,7 @@ public class SpoonJavadocVisitor {
     }
 
     @NotNull
-    private static ProcessedJavadoc processJavadocs(CtJavaDoc javadoc, CtJavaDoc originalJavadoc) {
+    private static ProcessedJavadoc processJavadocs(CtJavaDoc javadoc, CtJavaDoc originalJavadoc, String[] parameters, String[] typeParameters) {
         var content = javadoc.getLongDescription();
         Map<String, List<String>> tags = new HashMap<>();
         for (var tag : javadoc.getTags()) {
@@ -172,6 +186,34 @@ public class SpoonJavadocVisitor {
                 tagContent = tag.getParam() + " " + tagContent;
             }
             tags.computeIfAbsent(tag.getType().getName(), k -> new ArrayList<>()).add(tagContent);
+        }
+        List<String> parametersOut = null;
+        if (parameters != null && tags.containsKey("param")) {
+            var params = tags.get("param");
+            parametersOut = new ArrayList<>();
+            for (String parameter : parameters) {
+                var optional = params.stream().filter(s -> s.trim().split(" ")[0].equals(parameter)).findFirst();
+                if (optional.isPresent()) {
+                    parametersOut.add(optional.get().trim().substring(parameter.length()+1));
+                    params.remove(optional.get());
+                } else {
+                    parametersOut.add("");
+                }
+            }
+        }
+        List<String> typeParametersOut = null;
+        if (typeParameters != null && tags.containsKey("param")) {
+            var params = tags.get("param");
+            typeParametersOut = new ArrayList<>();
+            for (String parameter : typeParameters) {
+                var optional = params.stream().filter(s -> s.trim().split(" ")[0].equals('<'+parameter+'>')).findFirst();
+                if (optional.isPresent()) {
+                    typeParametersOut.add(optional.get().trim().substring(parameter.length()+3));
+                    params.remove(optional.get());
+                } else {
+                    typeParametersOut.add("");
+                }
+            }
         }
         String contentDiff = content;
         if (originalJavadoc != null) {
@@ -192,8 +234,8 @@ public class SpoonJavadocVisitor {
                 }
             }
         }
-        return new ProcessedJavadoc(tags, contentDiff);
+        return new ProcessedJavadoc(tags, contentDiff, parametersOut == null || parametersOut.isEmpty() ? null : parametersOut.toArray(String[]::new), typeParametersOut == null || typeParametersOut.isEmpty() ? null : typeParametersOut.toArray(String[]::new));
     }
 
-    private record ProcessedJavadoc(Map<String, List<String>> tags, String contentDiff) {}
+    private record ProcessedJavadoc(Map<String, List<String>> tags, String contentDiff, String[] parameters, String[] typeParameters) {}
 }
