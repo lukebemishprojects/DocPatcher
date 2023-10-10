@@ -33,15 +33,8 @@ public class SpoonJavadocVisitor {
             if (javadocComment instanceof CtJavaDoc javadoc) {
                 ProcessedJavadoc result = processJavadocs(javadoc, originalJavadoc);
 
-                String[] parameters = null;
-                if (modified instanceof CtRecord ctRecord) {
-                    parameters = ctRecord.getRecordComponents().stream().map(CtRecordComponent::getSimpleName).toArray(String[]::new);
-                }
-
-                var typeParameters = modified.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
-
                 if (result.contentDiff() != null || !result.tags().isEmpty()) {
-                    classJavadocEntry = new JavadocEntry(result.contentDiff(), result.tags().isEmpty() ? null : result.tags(), (parameters == null || parameters.length == 0) ? null : parameters, typeParameters.length == 0 ? null : typeParameters);
+                    classJavadocEntry = new JavadocEntry(result.contentDiff(), result.tags().isEmpty() ? null : result.tags(), null, null);
                 }
             }
         }
@@ -135,15 +128,8 @@ public class SpoonJavadocVisitor {
             if (javadocComment instanceof CtJavaDoc javadoc) {
                 ProcessedJavadoc result = processJavadocs(javadoc, originalJavadoc);
 
-                String[] parameters = modified.getParameters().stream().map(CtParameter::getSimpleName).toArray(String[]::new);
-
-                String[] typeParameters = null;
-                if (modified instanceof CtFormalTypeDeclarer formalTypeDeclarer) {
-                    typeParameters = formalTypeDeclarer.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
-                }
-
                 if (result.contentDiff() != null || !result.tags().isEmpty()) {
-                    javadocEntry = new JavadocEntry(result.contentDiff(), result.tags().isEmpty() ? null : result.tags(), parameters.length == 0 ? null : parameters, (typeParameters == null || typeParameters.length == 0) ? null : typeParameters);
+                    javadocEntry = new JavadocEntry(result.contentDiff(), result.tags().isEmpty() ? null : result.tags(), null, null);
                 }
             }
         }
