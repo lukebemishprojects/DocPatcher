@@ -64,7 +64,12 @@ public class DiffSettings {
      */
     public void setPatches(String patches) {
         this.patches = patches;
-        this.patchesProperty.convention(project.getLayout().getProjectDirectory().dir("src").dir(patches).dir("resources"));
+        this.patchesProperty.convention(project.provider(() -> {
+            var dir = project.getLayout().getProjectDirectory().dir("src").dir(patches).dir("resources");
+            if (!dir.getAsFile().exists())
+                dir.getAsFile().mkdirs();
+            return dir;
+        }));
     }
 
     public String getModified() {

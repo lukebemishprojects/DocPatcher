@@ -11,10 +11,7 @@ import org.gradle.api.Project;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.RelativePath;
 import org.gradle.api.plugins.JavaPluginExtension;
-import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.InputDirectory;
-import org.gradle.api.tasks.OutputDirectory;
-import org.gradle.api.tasks.TaskAction;
+import org.gradle.api.tasks.*;
 import org.jetbrains.annotations.NotNull;
 import spoon.Launcher;
 
@@ -24,6 +21,8 @@ import java.nio.file.Files;
 
 public abstract class ApplyPatchesTask extends DefaultTask {
     @InputDirectory
+    @Optional
+    @IgnoreEmptyDirectories
     public abstract DirectoryProperty getPatches();
     @InputDirectory
     public abstract DirectoryProperty getSource();
@@ -99,6 +98,9 @@ public abstract class ApplyPatchesTask extends DefaultTask {
     @NotNull
     private JavadocInjector createInjector() {
         JClassParser parser = new SpoonClassParser(this::makeLauncher);
+        if (getPatches().getOrNull() == null) {
+            return new JavadocInjector(parser, className -> null);
+        }
         JavadocProvider provider = className -> {
             className = className.replace('.', '/');
             var path = getPatches().get().getAsFile().toPath().resolve(className + ".docpatcher.json");
