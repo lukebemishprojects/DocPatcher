@@ -200,6 +200,9 @@ public class SpoonJavadocVisitor {
                     parametersOut.add("");
                 }
             }
+            if (params.isEmpty()) {
+                tags.remove("param");
+            }
         }
         List<String> typeParametersOut = null;
         if (typeParameters != null && tags.containsKey("param")) {
@@ -213,6 +216,9 @@ public class SpoonJavadocVisitor {
                 } else {
                     typeParametersOut.add("");
                 }
+            }
+            if (params.isEmpty()) {
+                tags.remove("param");
             }
         }
         String contentDiff = content;
