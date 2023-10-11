@@ -62,7 +62,7 @@ public abstract class MakePatchesTask extends DefaultTask {
 
         getProject().delete(getOutputDirectory());
 
-        var visitor = new SpoonJavadocVisitor();
+        var visitor = new SpoonJavadocVisitor.Comparing(false);
 
         getModified().getAsFileTree().visit(fileVisitDetails -> {
             if (!fileVisitDetails.isDirectory() && fileVisitDetails.getFile().getName().endsWith(".java")) {

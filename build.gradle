@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'dev.lukebemish.docpatcher'
-version = '0.1.4'
+version = '0.2.0'
 
 java {
     // I don't feel like dealing with old java...
@@ -22,9 +22,10 @@ repositories {
 
 dependencies {
     compileOnly 'org.jetbrains:annotations:24.0.1'
-    implementation 'net.neoforged.javadoctor:injector-spoon:2.0.3'
+    implementation 'net.neoforged.javadoctor:injector-spoon:2.0.4'
     implementation 'fr.inria.gforge.spoon:spoon-core:10.4.1'
     implementation 'com.google.guava:guava:32.1.2-jre'
+    implementation 'org.apache.commons:commons-text:1.10.0'
 }
 
 processResources {

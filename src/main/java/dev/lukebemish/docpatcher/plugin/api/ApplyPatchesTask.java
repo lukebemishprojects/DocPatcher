@@ -1,6 +1,9 @@
 package dev.lukebemish.docpatcher.plugin.api;
 
+import dev.lukebemish.docpatcher.plugin.impl.JavadocStrippingVisitor;
+import dev.lukebemish.docpatcher.plugin.impl.SpoonJavadocVisitor;
 import dev.lukebemish.docpatcher.plugin.impl.Utils;
+import net.neoforged.javadoctor.injector.CombiningJavadocProvider;
 import net.neoforged.javadoctor.injector.JavadocInjector;
 import net.neoforged.javadoctor.injector.JavadocProvider;
 import net.neoforged.javadoctor.injector.ast.JClassParser;
@@ -11,13 +14,17 @@ import org.gradle.api.Project;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.RelativePath;
 import org.gradle.api.plugins.JavaPluginExtension;
+import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.*;
 import org.jetbrains.annotations.NotNull;
 import spoon.Launcher;
+import spoon.support.compiler.FileSystemFile;
+import spoon.support.compiler.VirtualFile;
 
 import javax.inject.Inject;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.List;
 
 public abstract class ApplyPatchesTask extends DefaultTask {
     @InputDirectory
@@ -29,29 +36,27 @@ public abstract class ApplyPatchesTask extends DefaultTask {
     @OutputDirectory
     public abstract DirectoryProperty getOutputDirectory();
     @Input
-    private int javaVersion;
-
-    public void setJavaVersion(int javaVersion) {
-        this.javaVersion = javaVersion;
-    }
-
-    public int getJavaVersion() {
-        if (javaVersion == 0) {
-            throw new RuntimeException("Java version not set");
-        }
-        return javaVersion;
-    }
+    public abstract Property<Integer> getJavaVersion();
+    @Input
+    @Optional
+    public abstract Property<String> getOriginalTag();
+    @Input
+    public abstract Property<Boolean> getKeepOriginal();
+    @Input
+    public abstract Property<Boolean> getSanitizeOriginal();
 
     @Inject
     public ApplyPatchesTask(Project project) {
         var version = project.getExtensions().getByType(JavaPluginExtension.class).getToolchain().getLanguageVersion();
         if (version.isPresent()) {
-            this.javaVersion = version.get().asInt();
+            this.getJavaVersion().convention(version.get().asInt());
         }
+        getKeepOriginal().convention(true);
+        getSanitizeOriginal().convention(false);
     }
 
     private Launcher makeLauncher() {
-        return Utils.makeLauncher(getJavaVersion());
+        return Utils.makeLauncher(getJavaVersion().get());
     }
 
     @TaskAction
@@ -68,6 +73,13 @@ public abstract class ApplyPatchesTask extends DefaultTask {
                 String className = fileName.substring(0, fileName.length() - 5);
                 try {
                     String contents = Files.readString(fileVisitDetails.getFile().toPath());
+                    var launcher = makeLauncher();
+                    launcher.addInputResource(new VirtualFile(contents));
+                    var visitor = new JavadocStrippingVisitor(contents);
+                    for (var type : launcher.buildModel().getAllTypes()) {
+                        visitor.visit(type);
+                    }
+                    contents = visitor.build();
                     var result = injector.injectDocs(className, contents, null);
                     result.getResult().ifPresentOrElse(injectionResult -> {
                         try {
@@ -96,12 +108,11 @@ public abstract class ApplyPatchesTask extends DefaultTask {
     }
 
     @NotNull
-    private JavadocInjector createInjector() {
-        JClassParser parser = new SpoonClassParser(this::makeLauncher);
+    private JavadocProvider createPatchInjector() {
         if (getPatches().getOrNull() == null) {
-            return new JavadocInjector(parser, className -> null);
+            return className -> null;
         }
-        JavadocProvider provider = className -> {
+        return className -> {
             className = className.replace('.', '/');
             var path = getPatches().get().getAsFile().toPath().resolve(className + ".docpatcher.json");
             if (Files.exists(path)) {
@@ -114,6 +125,41 @@ public abstract class ApplyPatchesTask extends DefaultTask {
             }
             return null;
         };
-        return new JavadocInjector(parser, provider);
+    }
+
+    @NotNull
+    private JavadocProvider createOriginalInjector() {
+        if (!getKeepOriginal().get()) {
+            return className -> null;
+        }
+        return className -> {
+            className = className.replace('.', '/');
+            var path = getSource().get().getAsFile().toPath().resolve(className + ".java");
+            if (Files.exists(path)) {
+                String tag = getOriginalTag().getOrNull();
+                Launcher launcher = makeLauncher();
+                launcher.addInputResource(new FileSystemFile(path.toFile()));
+                var mTypes = launcher.buildModel().getAllTypes().stream().toList();
+                if (mTypes.size() != 1) {
+                    throw new RuntimeException("Expected 1 type, found " + mTypes.size());
+                }
+                var type = mTypes.get(0);
+                if (tag != null) {
+                    SpoonJavadocVisitor.TagWrapper visitor = new SpoonJavadocVisitor.TagWrapper(tag, getSanitizeOriginal().get());
+                    return visitor.visit(type);
+                }
+                var visitor = new SpoonJavadocVisitor.Simple(getSanitizeOriginal().get());
+                return visitor.visit(type);
+            }
+            return null;
+        };
+    }
+
+    @NotNull
+    private JavadocInjector createInjector() {
+        JClassParser parser = new SpoonClassParser(this::makeLauncher);
+        var patches = createPatchInjector();
+        var original = createOriginalInjector();
+        return new JavadocInjector(parser, new CombiningJavadocProvider(List.of(patches, original)));
     }
 }

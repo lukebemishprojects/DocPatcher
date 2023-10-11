@@ -12,7 +12,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class SpoonPatchVisitor {
+public class SpoonRemainingVisitor {
     public ClassJavadoc visit(CtType<?> clean, ClassJavadoc original) {
         Map<String, JavadocEntry> methods = new HashMap<>();
         Map<String, JavadocEntry> fields = new HashMap<>();

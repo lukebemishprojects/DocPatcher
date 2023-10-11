@@ -25,6 +25,8 @@ public class DiffSettings {
     private final Property<SourceSet> patchesSourceSetProperty;
     private final Property<SourceSet> outputSourceSetProperty;
     private final Project project;
+    private String originalTag;
+    private boolean sanitizeOriginal;
 
     public DiffSettings(ObjectFactory objectFactory, Project project) {
         this.cleanProperty = objectFactory.directoryProperty();
@@ -209,12 +211,17 @@ public class DiffSettings {
             task.getPatches().set(getPatchesDirectory());
             task.getSource().set(getCleanDirectory());
             task.getOutputDirectory().set(getOutputDirectory());
+            if (getOriginalTag() != null) {
+                task.getOriginalTag().set(getOriginalTag());
+            }
+            task.getSanitizeOriginal().set(getSanitizeOriginal());
             task.dependsOn(cleanTask);
         });
         var uncheckedApplyTask = project.getTasks().register(PREFIX_SETUP+StringUtils.capitalize(getModified())+"ApplyPatchesUnchecked", ApplyPatchesTask.class, task -> {
             task.getPatches().set(getPatchesDirectory());
             task.getSource().set(getCleanDirectory());
             task.getOutputDirectory().set(getModifiedDirectory());
+            task.getKeepOriginal().set(false);
             task.dependsOn(cleanTask);
         });
         project.getTasks().register(PREFIX_SETUP+StringUtils.capitalize(getModified())+"ApplyPatches", MissedPatchesTask.class, task -> {
@@ -232,5 +239,21 @@ public class DiffSettings {
             src.srcDir(patchesProperty));
         outputSourceSet.java(src ->
             src.srcDir(outputProperty));
+    }
+
+    public String getOriginalTag() {
+        return originalTag;
+    }
+
+    public void setOriginalTag(String originalTag) {
+        this.originalTag = originalTag;
+    }
+
+    public boolean getSanitizeOriginal() {
+        return sanitizeOriginal;
+    }
+
+    public void setSanitizeOriginal(boolean sanitizeOriginal) {
+        this.sanitizeOriginal = sanitizeOriginal;
     }
 }

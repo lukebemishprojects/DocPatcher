@@ -1,6 +1,6 @@
 package dev.lukebemish.docpatcher.plugin.api;
 
-import dev.lukebemish.docpatcher.plugin.impl.SpoonPatchVisitor;
+import dev.lukebemish.docpatcher.plugin.impl.SpoonRemainingVisitor;
 import dev.lukebemish.docpatcher.plugin.impl.Utils;
 import net.neoforged.javadoctor.injector.JavadocProvider;
 import net.neoforged.javadoctor.spec.ClassJavadoc;
@@ -59,7 +59,7 @@ public abstract class MissedPatchesTask extends DefaultTask {
             return;
         }
         getProject().delete(getOutputDirectory());
-        SpoonPatchVisitor visitor = new SpoonPatchVisitor();
+        SpoonRemainingVisitor visitor = new SpoonRemainingVisitor();
         JavadocProvider provider = makeProvider();
         getSource().getAsFileTree().visit(fileVisitDetails -> {
             RelativePath relativePath = fileVisitDetails.getRelativePath();
