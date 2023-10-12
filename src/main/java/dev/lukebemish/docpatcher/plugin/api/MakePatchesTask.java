@@ -1,14 +1,16 @@
 package dev.lukebemish.docpatcher.plugin.api;
 
 import com.google.gson.JsonElement;
-import dev.lukebemish.docpatcher.plugin.impl.Utils;
 import dev.lukebemish.docpatcher.plugin.impl.SpoonJavadocVisitor;
+import dev.lukebemish.docpatcher.plugin.impl.Utils;
 import net.neoforged.javadoctor.spec.ClassJavadoc;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.RelativePath;
 import org.gradle.api.plugins.JavaPluginExtension;
+import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputDirectory;
@@ -17,6 +19,7 @@ import spoon.Launcher;
 import spoon.support.compiler.FileSystemFile;
 
 import javax.inject.Inject;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,31 +30,22 @@ public abstract class MakePatchesTask extends DefaultTask {
     @InputFiles
     public abstract DirectoryProperty getModified();
     @Input
-    private int javaVersion;
+    public abstract Property<Integer> getJavaVersion();
     @OutputDirectory
     public abstract DirectoryProperty getOutputDirectory();
-
-    public void setJavaVersion(int javaVersion) {
-        this.javaVersion = javaVersion;
-    }
-
-    public int getJavaVersion() {
-        if (javaVersion == 0) {
-            throw new RuntimeException("Java version not set");
-        }
-        return javaVersion;
-    }
+    @InputFiles
+    public abstract ConfigurableFileCollection getClasspath();
 
     @Inject
     public MakePatchesTask(Project project) {
         var version = project.getExtensions().getByType(JavaPluginExtension.class).getToolchain().getLanguageVersion();
         if (version.isPresent()) {
-            this.javaVersion = version.get().asInt();
+            this.getJavaVersion().convention(version.get().asInt());
         }
     }
 
     private Launcher makeLauncher() {
-        return Utils.makeLauncher(getJavaVersion());
+        return Utils.makeLauncher(getJavaVersion().get(), getClasspath().getFiles().stream().map(File::getPath).toArray(String[]::new));
     }
 
     @TaskAction

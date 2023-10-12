@@ -20,12 +20,14 @@ repositories {
 
 configurations {
     original
+    docClasspath
 }
 
 dependencies {
     original('com.mojang:datafixerupper:6.0.8:sources') {
         transitive = false
     }
+    docClasspath 'com.mojang:datafixerupper:6.0.8'
 }
 
 docPatcher.diff {
@@ -36,6 +38,7 @@ docPatcher.diff {
     outputSourceSet.set sourceSets.main
     outputDirectory.set file("build/patched")
     source = configurations.original
+    classpath = configurations.docClasspath
     missedDirectory.set file("build/missed")
     originalTag = 'testTag'
     sanitizeOriginal = true

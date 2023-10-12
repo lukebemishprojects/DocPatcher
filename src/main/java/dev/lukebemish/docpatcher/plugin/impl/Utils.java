@@ -19,12 +19,12 @@ public final class Utils {
         .setPrettyPrinting()
         .create();
 
-    public static Launcher makeLauncher(int javaVersion) {
+    public static Launcher makeLauncher(int javaVersion, String[] classpath) {
         final Launcher launcher = new Launcher();
-        launcher.getEnvironment().setNoClasspath(true);
         launcher.getEnvironment().setCommentEnabled(true);
         launcher.getEnvironment().setIgnoreSyntaxErrors(true);
         launcher.getEnvironment().setComplianceLevel(javaVersion);
+        launcher.getEnvironment().setSourceClasspath(classpath);
         return launcher;
     }
 

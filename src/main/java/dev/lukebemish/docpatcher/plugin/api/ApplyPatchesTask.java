@@ -11,6 +11,7 @@ import net.neoforged.javadoctor.injector.spoon.SpoonClassParser;
 import net.neoforged.javadoctor.spec.ClassJavadoc;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.RelativePath;
 import org.gradle.api.plugins.JavaPluginExtension;
@@ -22,6 +23,7 @@ import spoon.support.compiler.FileSystemFile;
 import spoon.support.compiler.VirtualFile;
 
 import javax.inject.Inject;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
@@ -44,6 +46,8 @@ public abstract class ApplyPatchesTask extends DefaultTask {
     public abstract Property<Boolean> getKeepOriginal();
     @Input
     public abstract Property<Boolean> getSanitizeOriginal();
+    @InputFiles
+    public abstract ConfigurableFileCollection getClasspath();
 
     @Inject
     public ApplyPatchesTask(Project project) {
@@ -56,7 +60,7 @@ public abstract class ApplyPatchesTask extends DefaultTask {
     }
 
     private Launcher makeLauncher() {
-        return Utils.makeLauncher(getJavaVersion().get());
+        return Utils.makeLauncher(getJavaVersion().get(), getClasspath().getFiles().stream().map(File::getPath).toArray(String[]::new));
     }
 
     @TaskAction

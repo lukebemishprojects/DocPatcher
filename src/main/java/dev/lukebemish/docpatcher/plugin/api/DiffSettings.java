@@ -15,6 +15,7 @@ public class DiffSettings {
     private String patches;
     private String output;
     private Configuration source;
+    private Configuration classpath;
     private final DirectoryProperty cleanProperty;
     private final DirectoryProperty modifiedProperty;
     private final DirectoryProperty patchesProperty;
@@ -115,6 +116,19 @@ public class DiffSettings {
         this.source = source;
     }
 
+    public Configuration getClasspath() {
+        if (classpath == null)
+            throw new RuntimeException("Classpath configuration not set");
+        return classpath;
+    }
+
+    /**
+     * The configuration to use as a classpath while parsing files.
+     */
+    public void setClasspath(Configuration classpath) {
+        this.classpath = classpath;
+    }
+
     /**
      * The directory to extract clean files to.
      */
@@ -206,6 +220,7 @@ public class DiffSettings {
             task.getClean().set(getCleanDirectory());
             task.getModified().set(getModifiedDirectory());
             task.getOutputDirectory().set(getPatchesDirectory());
+            task.getClasspath().from(getClasspath());
         });
         project.getTasks().register(PREFIX_APPLY+StringUtils.capitalize(getOutput())+"ApplyPatches", ApplyPatchesTask.class, task -> {
             task.getPatches().set(getPatchesDirectory());
@@ -215,6 +230,7 @@ public class DiffSettings {
                 task.getOriginalTag().set(getOriginalTag());
             }
             task.getSanitizeOriginal().set(getSanitizeOriginal());
+            task.getClasspath().from(getClasspath());
             task.dependsOn(cleanTask);
         });
         var uncheckedApplyTask = project.getTasks().register(PREFIX_SETUP+StringUtils.capitalize(getModified())+"ApplyPatchesUnchecked", ApplyPatchesTask.class, task -> {
@@ -222,12 +238,14 @@ public class DiffSettings {
             task.getSource().set(getCleanDirectory());
             task.getOutputDirectory().set(getModifiedDirectory());
             task.getKeepOriginal().set(false);
+            task.getClasspath().from(getClasspath());
             task.dependsOn(cleanTask);
         });
         project.getTasks().register(PREFIX_SETUP+StringUtils.capitalize(getModified())+"ApplyPatches", MissedPatchesTask.class, task -> {
             task.getPatches().set(getPatchesDirectory());
             task.getSource().set(getModifiedDirectory());
             task.getOutputDirectory().set(getMissedDirectory());
+            task.getClasspath().from(getClasspath());
             task.dependsOn(uncheckedApplyTask);
         });
 
