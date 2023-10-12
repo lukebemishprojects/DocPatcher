@@ -80,7 +80,7 @@ public abstract class ApplyPatchesTask extends DefaultTask {
                     var launcher = makeLauncher();
                     launcher.addInputResource(new VirtualFile(contents));
                     var visitor = new JavadocStrippingVisitor(contents);
-                    for (var type : launcher.buildModel().getAllTypes()) {
+                    for (var type : Utils.buildModel(launcher).getAllTypes()) {
                         visitor.visit(type);
                     }
                     contents = visitor.build();
@@ -143,7 +143,7 @@ public abstract class ApplyPatchesTask extends DefaultTask {
                 String tag = getOriginalTag().getOrNull();
                 Launcher launcher = makeLauncher();
                 launcher.addInputResource(new FileSystemFile(path.toFile()));
-                var mTypes = launcher.buildModel().getAllTypes().stream().toList();
+                var mTypes = Utils.buildModel(launcher).getAllTypes().stream().toList();
                 if (mTypes.size() != 1) {
                     throw new RuntimeException("Expected 1 type, found " + mTypes.size());
                 }

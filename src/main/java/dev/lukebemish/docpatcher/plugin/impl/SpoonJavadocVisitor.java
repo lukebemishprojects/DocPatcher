@@ -5,7 +5,6 @@ import net.neoforged.javadoctor.injector.spoon.JVMSignatureBuilder;
 import net.neoforged.javadoctor.spec.ClassJavadoc;
 import net.neoforged.javadoctor.spec.JavadocEntry;
 import org.apache.commons.text.StringEscapeUtils;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import spoon.reflect.code.CtJavaDoc;
 import spoon.reflect.declaration.*;
@@ -44,11 +43,7 @@ public abstract sealed class SpoonJavadocVisitor {
 
                     var typeParameters = modified.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
 
-                    ProcessedJavadoc result = processJavadocs(javadoc, null, parameters, typeParameters);
-
-                    if (result.content() != null || !result.tags().isEmpty()) {
-                        classJavadocEntry = new JavadocEntry(result.content(), result.tags().isEmpty() ? null : result.tags(), result.parameters, result.typeParameters);
-                    }
+                    classJavadocEntry = processJavadocs(javadoc, null, parameters, typeParameters);
                 }
             }
 
@@ -106,11 +101,7 @@ public abstract sealed class SpoonJavadocVisitor {
                         typeParameters = formalTypeDeclarer.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
                     }
 
-                    ProcessedJavadoc result = processJavadocs(javadoc, null, parameters, typeParameters);
-
-                    if (result.content() != null || !result.tags().isEmpty()) {
-                        javadocEntry = new JavadocEntry(result.content(), result.tags().isEmpty() ? null : result.tags(), result.parameters, result.typeParameters);
-                    }
+                    javadocEntry = processJavadocs(javadoc, null, parameters, typeParameters);
                 }
             }
 
@@ -123,11 +114,7 @@ public abstract sealed class SpoonJavadocVisitor {
             if (!comments.isEmpty()) {
                 var javadocComment = comments.get(0);
                 if (javadocComment instanceof CtJavaDoc javadoc) {
-                    ProcessedJavadoc result = processJavadocs(javadoc, null, null, null);
-
-                    if (result.content() != null || !result.tags().isEmpty()) {
-                        javadocEntry = new JavadocEntry(result.content(), result.tags().isEmpty() ? null : result.tags(), null, null);
-                    }
+                    javadocEntry = processJavadocs(javadoc, null, null, null);
                 }
             }
 
@@ -265,11 +252,7 @@ public abstract sealed class SpoonJavadocVisitor {
 
                     var typeParameters = modified.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
 
-                    ProcessedJavadoc result = processJavadocs(javadoc, originalJavadoc, parameters, typeParameters);
-
-                    if (result.content() != null || !result.tags().isEmpty()) {
-                        classJavadocEntry = new JavadocEntry(result.content(), result.tags().isEmpty() ? null : result.tags(), result.parameters, result.typeParameters);
-                    }
+                    classJavadocEntry = processJavadocs(javadoc, originalJavadoc, parameters, typeParameters);
                 }
             }
 
@@ -367,11 +350,7 @@ public abstract sealed class SpoonJavadocVisitor {
                         typeParameters = formalTypeDeclarer.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
                     }
 
-                    ProcessedJavadoc result = processJavadocs(javadoc, originalJavadoc, parameters, typeParameters);
-
-                    if (result.content() != null || !result.tags().isEmpty()) {
-                        javadocEntry = new JavadocEntry(result.content(), result.tags().isEmpty() ? null : result.tags(), result.parameters, result.typeParameters);
-                    }
+                    javadocEntry = processJavadocs(javadoc, originalJavadoc, parameters, typeParameters);
                 }
             }
 
@@ -392,11 +371,7 @@ public abstract sealed class SpoonJavadocVisitor {
             if (!comments.isEmpty()) {
                 var javadocComment = comments.get(0);
                 if (javadocComment instanceof CtJavaDoc javadoc) {
-                    ProcessedJavadoc result = processJavadocs(javadoc, originalJavadoc, null, null);
-
-                    if (result.content() != null || !result.tags().isEmpty()) {
-                        javadocEntry = new JavadocEntry(result.content(), result.tags().isEmpty() ? null : result.tags(), null, null);
-                    }
+                    javadocEntry = processJavadocs(javadoc, originalJavadoc, null, null);
                 }
             }
 
@@ -404,20 +379,48 @@ public abstract sealed class SpoonJavadocVisitor {
         }
     }
 
-    @NotNull
-    protected ProcessedJavadoc processJavadocs(CtJavaDoc javadoc, @Nullable CtJavaDoc originalJavadoc, String[] parameters, String[] typeParameters) {
+    protected @Nullable JavadocEntry processJavadocs(CtJavaDoc javadoc, @Nullable CtJavaDoc originalJavadoc, String[] parameters, String[] typeParameters) {
+        CtElement parent = javadoc.getParent();
+
         var content = javadoc.getLongDescription();
         if (!content.equals(javadoc.getShortDescription())) {
             content = javadoc.getShortDescription() + '\n' + content;
         }
+        content = JavadocImportProcessor.expand(parent, content);
         Map<String, List<String>> tags = new HashMap<>();
         for (var tag : javadoc.getTags()) {
             String tagContent = sanitize(tag.getContent());
             if (tag.getType().hasParam()) {
                 tagContent = tag.getParam() + " " + tagContent;
             }
+            tagContent = processTag(parent, tagContent, tag.getType().getName());
             tags.computeIfAbsent(tag.getType().getName(), k -> new ArrayList<>()).add(tagContent);
         }
+        String finalContent = sanitize(content);
+        if (originalJavadoc != null) {
+            CtElement originalParent = originalJavadoc.getParent();
+
+            var originalContent = originalJavadoc.getLongDescription();
+            if (!originalContent.equals(originalJavadoc.getShortDescription())) {
+                originalContent = originalJavadoc.getShortDescription() + '\n' + originalContent;
+            }
+            originalContent = JavadocImportProcessor.expand(originalParent, originalContent);
+            if (content.equals(originalContent)) {
+                finalContent = null;
+            }
+            for (var tag : originalJavadoc.getTags()) {
+                String tagContent = tag.getContent();
+                if (tag.getType().hasParam()) {
+                    tagContent = tag.getParam() + " " + tagContent;
+                }
+                tagContent = processTag(originalParent, tagContent, tag.getType().getName());
+                tags.computeIfAbsent(tag.getType().getName(), k -> new ArrayList<>()).remove(tagContent);
+                if (tags.get(tag.getType().getName()).isEmpty()) {
+                    tags.remove(tag.getType().getName());
+                }
+            }
+        }
+
         List<String> parametersOut = null;
         if (parameters != null && tags.containsKey("param")) {
             var params = tags.get("param");
@@ -437,6 +440,7 @@ public abstract sealed class SpoonJavadocVisitor {
                 tags.remove("param");
             }
         }
+
         List<String> typeParametersOut = null;
         if (typeParameters != null && tags.containsKey("param")) {
             var params = tags.get("param");
@@ -456,27 +460,12 @@ public abstract sealed class SpoonJavadocVisitor {
                 tags.remove("param");
             }
         }
-        String finalContent = sanitize(content);
-        if (originalJavadoc != null) {
-            var originalContent = originalJavadoc.getLongDescription();
-            if (!originalContent.equals(originalJavadoc.getShortDescription())) {
-                originalContent = originalJavadoc.getShortDescription() + '\n' + originalContent;
-            }
-            if (content.equals(originalContent)) {
-                finalContent = null;
-            }
-            for (var tag : originalJavadoc.getTags()) {
-                String tagContent = tag.getContent();
-                if (tag.getType().hasParam()) {
-                    tagContent = tag.getParam() + " " + tagContent;
-                }
-                tags.computeIfAbsent(tag.getType().getName(), k -> new ArrayList<>()).remove(tagContent);
-                if (tags.get(tag.getType().getName()).isEmpty()) {
-                    tags.remove(tag.getType().getName());
-                }
-            }
+
+        if (finalContent != null || !tags.isEmpty() || (parametersOut != null && parametersOut.stream().anyMatch(s -> !s.isEmpty())) || (typeParametersOut != null && typeParametersOut.stream().anyMatch(s -> !s.isEmpty()))) {
+            return new JavadocEntry(finalContent, tags.isEmpty() ? null : tags, parametersOut == null || parametersOut.isEmpty() ? null : parametersOut.toArray(String[]::new), typeParametersOut == null || typeParametersOut.isEmpty() ? null : typeParametersOut.toArray(String[]::new));
         }
-        return new ProcessedJavadoc(tags, finalContent, parametersOut == null || parametersOut.isEmpty() ? null : parametersOut.toArray(String[]::new), typeParametersOut == null || typeParametersOut.isEmpty() ? null : typeParametersOut.toArray(String[]::new));
+
+        return null;
     }
 
     protected String sanitize(String string) {
@@ -486,5 +475,9 @@ public abstract sealed class SpoonJavadocVisitor {
         return StringEscapeUtils.escapeHtml4(string);
     }
 
-    protected record ProcessedJavadoc(Map<String, List<String>> tags, String content, String[] parameters, String[] typeParameters) {}
+    private String processTag(CtElement parent, String tagContent, String tag) {
+        tagContent = JavadocImportProcessor.processBlockTag(tag, parent, tagContent);
+        tagContent = tagContent.lines().map(String::trim).collect(Collectors.joining("\n"));
+        return tagContent;
+    }
 }

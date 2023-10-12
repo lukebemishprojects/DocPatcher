@@ -66,7 +66,7 @@ public abstract class MakePatchesTask extends DefaultTask {
                 try {
                     Launcher mLauncher = makeLauncher();
                     mLauncher.addInputResource(new FileSystemFile(fileVisitDetails.getFile()));
-                    var mTypes = mLauncher.buildModel().getAllTypes().stream().toList();
+                    var mTypes = Utils.buildModel(mLauncher).getAllTypes().stream().toList();
                     if (mTypes.size() != 1) {
                         throw new RuntimeException("Expected 1 type, found " + mTypes.size());
                     }
@@ -77,7 +77,7 @@ public abstract class MakePatchesTask extends DefaultTask {
                     }
                     Launcher cLauncher = makeLauncher();
                     cLauncher.addInputResource(new FileSystemFile(cleanPath.toFile()));
-                    var cTypes = cLauncher.buildModel().getAllTypes().stream().toList();
+                    var cTypes = Utils.buildModel(cLauncher).getAllTypes().stream().toList();
                     if (cTypes.size() != 1) {
                         throw new RuntimeException("Expected 1 type, found " + cTypes.size());
                     }

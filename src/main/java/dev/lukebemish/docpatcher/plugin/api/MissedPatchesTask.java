@@ -61,7 +61,7 @@ public abstract class MissedPatchesTask extends DefaultTask {
                     String contents = Files.readString(fileVisitDetails.getFile().toPath());
                     Launcher launcher = makeLauncher();
                     launcher.addInputResource(new VirtualFile(contents));
-                    var type = launcher.buildModel().getAllTypes().stream().findAny().orElseThrow();
+                    var type = Utils.buildModel(launcher).getAllTypes().stream().findAny().orElseThrow();
                     ClassJavadoc javadoc = provider.get(className);
                     ClassJavadoc remainder = javadoc == null ? null : visitor.visit(type, javadoc);
                     if (remainder != null) {

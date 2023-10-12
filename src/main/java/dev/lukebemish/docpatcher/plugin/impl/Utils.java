@@ -8,6 +8,8 @@ import net.neoforged.javadoctor.io.gson.GsonJDocIO;
 import net.neoforged.javadoctor.spec.ClassJavadoc;
 import net.neoforged.javadoctor.spec.JavadocEntry;
 import spoon.Launcher;
+import spoon.reflect.CtModel;
+import spoon.reflect.visitor.ForceFullyQualifiedProcessor;
 
 public final class Utils {
     private Utils() {}
@@ -25,7 +27,14 @@ public final class Utils {
         launcher.getEnvironment().setIgnoreSyntaxErrors(true);
         launcher.getEnvironment().setComplianceLevel(javaVersion);
         launcher.getEnvironment().setSourceClasspath(classpath);
+        launcher.addProcessor(new ForceFullyQualifiedProcessor());
         return launcher;
+    }
+
+    public static CtModel buildModel(Launcher launcher) {
+        launcher.buildModel();
+        launcher.process();
+        return launcher.getModel();
     }
 
     public static JsonElement toJson(ClassJavadoc classJavadoc) {
