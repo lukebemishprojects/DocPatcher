@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'dev.lukebemish.docpatcher'
-version = '0.2.2'
+version = '0.2.3'
 
 java {
     // I don't feel like dealing with old java...
