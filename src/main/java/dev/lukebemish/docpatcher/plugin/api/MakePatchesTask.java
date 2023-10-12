@@ -44,8 +44,12 @@ public abstract class MakePatchesTask extends DefaultTask {
         }
     }
 
-    private Launcher makeLauncher() {
-        return Utils.makeLauncher(getJavaVersion().get(), getClasspath().getFiles().stream().map(File::getPath).toArray(String[]::new));
+    private Launcher makeLauncher(ClassLoader classLoader) {
+        return Utils.makeLauncher(getJavaVersion().get(), classLoader);
+    }
+
+    private ClassLoader makeClassLoader() {
+        return Utils.makeClassLoader(getClasspath().getFiles().stream().map(File::getPath));
     }
 
     @TaskAction
@@ -56,7 +60,9 @@ public abstract class MakePatchesTask extends DefaultTask {
 
         getProject().delete(getOutputDirectory());
 
-        var visitor = new SpoonJavadocVisitor.Comparing(false);
+        ClassLoader sourceClassLoader = makeClassLoader();
+
+        var visitor = new SpoonJavadocVisitor.Comparing(false, sourceClassLoader);
 
         getModified().getAsFileTree().visit(fileVisitDetails -> {
             if (!fileVisitDetails.isDirectory() && fileVisitDetails.getFile().getName().endsWith(".java")) {
@@ -64,7 +70,7 @@ public abstract class MakePatchesTask extends DefaultTask {
                 String className = String.join("/", relativePath.getSegments());
                 className = className.substring(0, className.length() - 5);
                 try {
-                    Launcher mLauncher = makeLauncher();
+                    Launcher mLauncher = makeLauncher(sourceClassLoader);
                     mLauncher.addInputResource(new FileSystemFile(fileVisitDetails.getFile()));
                     var mTypes = Utils.buildModel(mLauncher).getAllTypes().stream().toList();
                     if (mTypes.size() != 1) {
@@ -75,7 +81,7 @@ public abstract class MakePatchesTask extends DefaultTask {
                     if (!Files.exists(cleanPath)) {
                         throw new RuntimeException("Clean file does not exist: " + cleanPath);
                     }
-                    Launcher cLauncher = makeLauncher();
+                    Launcher cLauncher = makeLauncher(sourceClassLoader);
                     cLauncher.addInputResource(new FileSystemFile(cleanPath.toFile()));
                     var cTypes = Utils.buildModel(cLauncher).getAllTypes().stream().toList();
                     if (cTypes.size() != 1) {

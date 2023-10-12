@@ -20,14 +20,16 @@ import java.util.stream.Stream;
 public abstract sealed class SpoonJavadocVisitor {
 
     private final boolean sanitize;
+    private final JavadocImportProcessor javadocImportProcessor;
 
-    public SpoonJavadocVisitor(boolean sanitize) {
+    public SpoonJavadocVisitor(boolean sanitize, ClassLoader classLoader) {
         this.sanitize = sanitize;
+        this.javadocImportProcessor = new JavadocImportProcessor(classLoader);
     }
 
     public static final class Simple extends SpoonJavadocVisitor {
-        public Simple(boolean sanitize) {
-            super(sanitize);
+        public Simple(boolean sanitize, ClassLoader classLoader) {
+            super(sanitize, classLoader);
         }
 
         public ClassJavadoc visit(CtType<?> modified) {
@@ -125,8 +127,8 @@ public abstract sealed class SpoonJavadocVisitor {
     public static final class TagWrapper extends SpoonJavadocVisitor {
         private final String tag;
 
-        public TagWrapper(String tag, boolean sanitize) {
-            super(sanitize);
+        public TagWrapper(String tag, boolean sanitize, ClassLoader classLoader) {
+            super(sanitize, classLoader);
             this.tag = tag;
         }
 
@@ -227,8 +229,8 @@ public abstract sealed class SpoonJavadocVisitor {
     }
 
     public static final class Comparing extends SpoonJavadocVisitor {
-        public Comparing(boolean sanitize) {
-            super(sanitize);
+        public Comparing(boolean sanitize, ClassLoader classLoader) {
+            super(sanitize, classLoader);
         }
 
         public ClassJavadoc visit(CtType<?> clean, CtType<?> modified) {
@@ -386,7 +388,7 @@ public abstract sealed class SpoonJavadocVisitor {
         if (!content.equals(javadoc.getShortDescription())) {
             content = javadoc.getShortDescription() + '\n' + content;
         }
-        content = JavadocImportProcessor.expand(parent, content);
+        content = javadocImportProcessor.expand(parent, content);
         Map<String, List<String>> tags = new HashMap<>();
         for (var tag : javadoc.getTags()) {
             String tagContent = sanitize(tag.getContent());
@@ -404,7 +406,7 @@ public abstract sealed class SpoonJavadocVisitor {
             if (!originalContent.equals(originalJavadoc.getShortDescription())) {
                 originalContent = originalJavadoc.getShortDescription() + '\n' + originalContent;
             }
-            originalContent = JavadocImportProcessor.expand(originalParent, originalContent);
+            originalContent = javadocImportProcessor.expand(originalParent, originalContent);
             if (content.equals(originalContent)) {
                 finalContent = null;
             }
@@ -476,7 +478,7 @@ public abstract sealed class SpoonJavadocVisitor {
     }
 
     private String processTag(CtElement parent, String tagContent, String tag) {
-        tagContent = JavadocImportProcessor.processBlockTag(tag, parent, tagContent);
+        tagContent = javadocImportProcessor.processBlockTag(tag, parent, tagContent);
         tagContent = tagContent.lines().map(String::trim).collect(Collectors.joining("\n"));
         return tagContent;
     }

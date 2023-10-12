@@ -11,6 +11,12 @@ import spoon.Launcher;
 import spoon.reflect.CtModel;
 import spoon.reflect.visitor.ForceFullyQualifiedProcessor;
 
+import java.io.File;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.stream.Stream;
+
 public final class Utils {
     private Utils() {}
 
@@ -21,14 +27,26 @@ public final class Utils {
         .setPrettyPrinting()
         .create();
 
-    public static Launcher makeLauncher(int javaVersion, String[] classpath) {
+    public static Launcher makeLauncher(int javaVersion, ClassLoader classLoader) {
         final Launcher launcher = new Launcher();
         launcher.getEnvironment().setCommentEnabled(true);
         launcher.getEnvironment().setIgnoreSyntaxErrors(true);
         launcher.getEnvironment().setComplianceLevel(javaVersion);
-        launcher.getEnvironment().setSourceClasspath(classpath);
+        launcher.getEnvironment().setInputClassLoader(classLoader);
         launcher.addProcessor(new ForceFullyQualifiedProcessor());
         return launcher;
+    }
+
+    public static ClassLoader makeClassLoader(Stream<String> classpath) {
+        return new URLClassLoader(classpath
+            .map(path -> {
+                try {
+                    return new File(path).toURI().toURL();
+                } catch (MalformedURLException e) {
+                    throw new IllegalStateException("Invalid classpath entry "+path, e);
+                }
+            })
+            .toArray(URL[]::new), null);
     }
 
     public static CtModel buildModel(Launcher launcher) {

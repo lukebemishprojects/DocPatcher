@@ -59,8 +59,12 @@ public abstract class ApplyPatchesTask extends DefaultTask {
         getSanitizeOriginal().convention(false);
     }
 
-    private Launcher makeLauncher() {
-        return Utils.makeLauncher(getJavaVersion().get(), getClasspath().getFiles().stream().map(File::getPath).toArray(String[]::new));
+    private Launcher makeLauncher(ClassLoader classLoader) {
+        return Utils.makeLauncher(getJavaVersion().get(), classLoader);
+    }
+
+    private ClassLoader makeClassLoader() {
+        return Utils.makeClassLoader(getClasspath().getFiles().stream().map(File::getPath));
     }
 
     @TaskAction
@@ -68,8 +72,11 @@ public abstract class ApplyPatchesTask extends DefaultTask {
         if (getSource().get().getAsFileTree().isEmpty()) {
             return;
         }
+
+        ClassLoader sourceClassLoader = makeClassLoader();
+
         getProject().delete(getOutputDirectory());
-        JavadocInjector injector = createInjector();
+        JavadocInjector injector = createInjector(sourceClassLoader);
         getSource().getAsFileTree().visit(fileVisitDetails -> {
             RelativePath relativePath = fileVisitDetails.getRelativePath();
             String fileName = String.join("/", relativePath.getSegments());
@@ -77,7 +84,7 @@ public abstract class ApplyPatchesTask extends DefaultTask {
                 String className = fileName.substring(0, fileName.length() - 5);
                 try {
                     String contents = Files.readString(fileVisitDetails.getFile().toPath());
-                    var launcher = makeLauncher();
+                    var launcher = makeLauncher(sourceClassLoader);
                     launcher.addInputResource(new VirtualFile(contents));
                     var visitor = new JavadocStrippingVisitor(contents);
                     for (var type : Utils.buildModel(launcher).getAllTypes()) {
@@ -132,7 +139,7 @@ public abstract class ApplyPatchesTask extends DefaultTask {
     }
 
     @NotNull
-    private JavadocProvider createOriginalInjector() {
+    private JavadocProvider createOriginalInjector(ClassLoader classLoader) {
         if (!getKeepOriginal().get()) {
             return className -> null;
         }
@@ -141,7 +148,7 @@ public abstract class ApplyPatchesTask extends DefaultTask {
             var path = getSource().get().getAsFile().toPath().resolve(className + ".java");
             if (Files.exists(path)) {
                 String tag = getOriginalTag().getOrNull();
-                Launcher launcher = makeLauncher();
+                Launcher launcher = makeLauncher(classLoader);
                 launcher.addInputResource(new FileSystemFile(path.toFile()));
                 var mTypes = Utils.buildModel(launcher).getAllTypes().stream().toList();
                 if (mTypes.size() != 1) {
@@ -149,10 +156,10 @@ public abstract class ApplyPatchesTask extends DefaultTask {
                 }
                 var type = mTypes.get(0);
                 if (tag != null) {
-                    SpoonJavadocVisitor.TagWrapper visitor = new SpoonJavadocVisitor.TagWrapper(tag, getSanitizeOriginal().get());
+                    SpoonJavadocVisitor.TagWrapper visitor = new SpoonJavadocVisitor.TagWrapper(tag, getSanitizeOriginal().get(), classLoader);
                     return visitor.visit(type);
                 }
-                var visitor = new SpoonJavadocVisitor.Simple(getSanitizeOriginal().get());
+                var visitor = new SpoonJavadocVisitor.Simple(getSanitizeOriginal().get(), classLoader);
                 return visitor.visit(type);
             }
             return null;
@@ -160,10 +167,10 @@ public abstract class ApplyPatchesTask extends DefaultTask {
     }
 
     @NotNull
-    private JavadocInjector createInjector() {
-        JClassParser parser = new SpoonClassParser(this::makeLauncher);
+    private JavadocInjector createInjector(ClassLoader classLoader) {
+        JClassParser parser = new SpoonClassParser(() -> this.makeLauncher(classLoader));
         var patches = createPatchInjector();
-        var original = createOriginalInjector();
+        var original = createOriginalInjector(classLoader);
         return new JavadocInjector(parser, new CombiningJavadocProvider(List.of(patches, original)));
     }
 }

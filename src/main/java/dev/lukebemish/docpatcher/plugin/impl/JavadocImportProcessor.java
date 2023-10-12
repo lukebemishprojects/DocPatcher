@@ -2,6 +2,7 @@ package dev.lukebemish.docpatcher.plugin.impl;
 
 import spoon.experimental.CtUnresolvedImport;
 import spoon.reflect.declaration.*;
+import spoon.reflect.reference.CtPackageReference;
 import spoon.reflect.reference.CtTypeReference;
 
 import java.util.ArrayList;
@@ -15,7 +16,13 @@ public class JavadocImportProcessor {
     private static final Pattern PATTERN = Pattern.compile("@(?<tag>link|linkplain|see|value)(?<space>\\s+)" + MAIN);
     private static final Pattern MAIN_PATTERN = Pattern.compile("^"+MAIN);
 
-    private static String expandBody(CtElement element, final String owner, final String memberName, final String descFull, String desc) {
+    private final ClassLoader classLoader;
+
+    public JavadocImportProcessor(ClassLoader classLoader) {
+        this.classLoader = classLoader;
+    }
+
+    private String expandBody(CtElement element, final String owner, final String memberName, final String descFull, String desc) {
         final StringBuilder reference = new StringBuilder();
         final String owningClass = getQualifiedClass(element, owner);
         final boolean hasDesc = descFull != null && !descFull.isBlank();
@@ -37,7 +44,7 @@ public class JavadocImportProcessor {
         return reference.toString();
     }
 
-    public static String processBlockTag(String tag, CtElement element, String doc) {
+    public String processBlockTag(String tag, CtElement element, String doc) {
         if ("see".equals(tag)) {
             return MAIN_PATTERN.matcher(doc).replaceAll(result -> {
                 final StringBuilder reference = new StringBuilder();
@@ -52,7 +59,7 @@ public class JavadocImportProcessor {
         return doc;
     }
 
-    public static String expand(CtElement element, String doc) {
+    public String expand(CtElement element, String doc) {
         return PATTERN.matcher(doc).replaceAll(result -> {
             final StringBuilder reference = new StringBuilder()
                 .append('@').append(result.group(1)).append(result.group(2));
@@ -65,7 +72,7 @@ public class JavadocImportProcessor {
         });
     }
 
-    private static String getQualifiedClass(CtElement element, String original) {
+    private String getQualifiedClass(CtElement element, String original) {
         if (original == null || original.isBlank()) {
             return null;
         }
@@ -76,7 +83,7 @@ public class JavadocImportProcessor {
         return original;
     }
 
-    private static String processDesc(CtElement element, String desc) {
+    private String processDesc(CtElement element, String desc) {
         List<String> builder = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         for (int i = 0; i < desc.length(); i++) {
@@ -87,7 +94,7 @@ public class JavadocImportProcessor {
         return builder.stream().map(s -> getQualifiedClass(element, s)).collect(Collectors.joining(", "));
     }
 
-    private static int parseSimpleName(StringBuilder builder, String full, int start) {
+    private int parseSimpleName(StringBuilder builder, String full, int start) {
         for (int i = start; i < full.length(); i++) {
             char c = full.charAt(i);
             if (c != ',') {
@@ -114,7 +121,7 @@ public class JavadocImportProcessor {
 
      */
 
-    private static Optional<CtType<?>> qualifyType(CtElement context, String name) {
+    private Optional<CtType<?>> qualifyType(CtElement context, String name) {
         CtType<?> contextType = context instanceof CtType ? (CtType<?>) context : context.getParent(CtType.class);
 
         if (contextType != null && !name.isBlank()) {
@@ -149,7 +156,7 @@ public class JavadocImportProcessor {
 
         // The classes are not imported and not referenced if they are only used in javadoc...
         if (name.startsWith("java.lang")) {
-            return tryLoadModel(context, name);
+            return tryLoadModelOrReflection(context, name);
         }
 
         CtType<?> directLookupType = context.getFactory().Type().get(name);
@@ -157,11 +164,11 @@ public class JavadocImportProcessor {
             return Optional.of(directLookupType);
         }
 
-        return tryLoadModel(context, name)
-            .or(() -> tryLoadModel(context, "java.lang." + name));
+        return tryLoadModelOrReflection(context, name)
+            .or(() -> tryLoadModelOrReflection(context, "java.lang." + name));
     }
 
-    private static Optional<CtType<?>> getImportedType(CtElement context, String name, CtCompilationUnit parentUnit) {
+    private Optional<CtType<?>> getImportedType(CtElement context, String name, CtCompilationUnit parentUnit) {
         Optional<CtType<?>> referencedImportedType = parentUnit.getImports()
             .stream()
             .filter(it -> it.getImportKind() != CtImportKind.UNRESOLVED)
@@ -179,21 +186,39 @@ public class JavadocImportProcessor {
             return referencedImportedType;
         }
 
-        return parentUnit.getImports()
-            .stream()
-            .filter(it -> it.getImportKind() == CtImportKind.UNRESOLVED)
-            .filter(it -> ((CtUnresolvedImport) it).getUnresolvedReference().endsWith("*"))
+        return parentUnit.getImports().stream()
+            .filter(it -> it.getImportKind() == CtImportKind.ALL_TYPES)
+            .filter(it -> it.getReference() instanceof CtPackageReference)
             .flatMap(it -> {
-                String reference = ((CtUnresolvedImport) it).getUnresolvedReference();
-                reference = reference.substring(0, reference.length() - 1);
+                String reference = ((CtPackageReference) it.getReference()).getQualifiedName();
+                return tryLoadModelOrReflection(context, reference + "." + name).stream();
+            }).findFirst().or(() -> parentUnit.getImports()
+                .stream()
+                .filter(it -> it.getImportKind() == CtImportKind.UNRESOLVED)
+                .filter(it -> ((CtUnresolvedImport) it).getUnresolvedReference().endsWith("*"))
+                .flatMap(it -> {
+                    String reference = ((CtUnresolvedImport) it).getUnresolvedReference();
+                    reference = reference.substring(0, reference.length() - 1);
 
-                return tryLoadModel(context, reference + name).stream();
-            })
-            .findFirst();
+                    return tryLoadModelOrReflection(context, reference + name).stream();
+                })
+                .findFirst()
+            );
     }
 
-    private static Optional<CtType<?>> tryLoadModel(CtElement context, String name) {
+    private Optional<CtType<?>> tryLoadModelOrReflection(CtElement context, String name) {
         CtType<?> inModel = context.getFactory().Type().get(name);
-        return Optional.ofNullable(inModel);
+        if (inModel != null) {
+            return Optional.of(inModel);
+        }
+        return tryLoadClass(name).map(context.getFactory().Type()::get);
+    }
+
+    private Optional<Class<?>> tryLoadClass(String name) {
+        try {
+            return Optional.of(Class.forName(name, false, classLoader));
+        } catch (ClassNotFoundException e) {
+            return Optional.empty();
+        }
     }
 }

@@ -40,8 +40,12 @@ public abstract class MissedPatchesTask extends DefaultTask {
         }
     }
 
-    private Launcher makeLauncher() {
-        return Utils.makeLauncher(getJavaVersion().get(), getClasspath().getFiles().stream().map(File::getPath).toArray(String[]::new));
+    private Launcher makeLauncher(ClassLoader classLoader) {
+        return Utils.makeLauncher(getJavaVersion().get(), classLoader);
+    }
+
+    private ClassLoader makeClassLoader() {
+        return Utils.makeClassLoader(getClasspath().getFiles().stream().map(File::getPath));
     }
 
     @TaskAction
@@ -49,6 +53,9 @@ public abstract class MissedPatchesTask extends DefaultTask {
         if (getSource().get().getAsFileTree().isEmpty() || getPatches().get().getAsFileTree().isEmpty()) {
             return;
         }
+
+        ClassLoader sourceClassLoader = makeClassLoader();
+
         getProject().delete(getOutputDirectory());
         SpoonRemainingVisitor visitor = new SpoonRemainingVisitor();
         JavadocProvider provider = makeProvider();
@@ -59,7 +66,7 @@ public abstract class MissedPatchesTask extends DefaultTask {
                 String className = fileName.substring(0, fileName.length() - 5);
                 try {
                     String contents = Files.readString(fileVisitDetails.getFile().toPath());
-                    Launcher launcher = makeLauncher();
+                    Launcher launcher = makeLauncher(sourceClassLoader);
                     launcher.addInputResource(new VirtualFile(contents));
                     var type = Utils.buildModel(launcher).getAllTypes().stream().findAny().orElseThrow();
                     ClassJavadoc javadoc = provider.get(className);
