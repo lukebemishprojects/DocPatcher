@@ -34,6 +34,7 @@ docPatcher.diff {
     outputSourceSet.set sourceSets.main
     outputDirectory.set file("build/patched")
     source = configurations.original
+    classpath = configurations.compileClasspath
     missedDirectory.set file("build/missed")
 }
 ```
@@ -45,7 +46,7 @@ The other takes this envirionment and regenerates (overwriting) the patches. In 
 and collects any missed patches in the specified directory. The other main tasks are `docPatcherApplyPatchesGeneratePatches`, which
 generates patches by comparing the modified and clean sources, overwriting any existing patches, and `docPatcherApplyOutputApplyPatches`,
 which uses the clean source and the patches to create a generated modified source. The names of these tasks will be based on the names provided
-for the various `clean`, `modified`, `patches`, and `output` properties, and the directories and source sets used by these tasks can be convigured
+for the various `clean`, `modified`, `patches`, and `output` properties, and the directories and source sets used by these tasks can be configured
 independently by using the relevant properties in the `DiffSettings` DSL.
 
 An example of a full configuration can be found in the `test` folder.
