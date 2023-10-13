@@ -385,7 +385,13 @@ public abstract sealed class SpoonJavadocVisitor {
             for (String parameter : parameters) {
                 var optional = params.stream().filter(s -> s.trim().split(" ")[0].equals(parameter)).findFirst();
                 if (optional.isPresent()) {
-                    String doc = optional.get().trim().substring(parameter.length()+1).trim();
+                    String trimmedDoc = optional.get().trim();
+                    String doc;
+                    if (trimmedDoc.length() <= parameter.length()+1) {
+                        doc = "";
+                    } else {
+                        doc = trimmedDoc.substring(parameter.length()+1).trim();
+                    }
                     String trimmed = doc.lines().map(String::trim).collect(Collectors.joining(" "));
                     parametersOut.add(trimmed);
                     params.remove(optional.get());
