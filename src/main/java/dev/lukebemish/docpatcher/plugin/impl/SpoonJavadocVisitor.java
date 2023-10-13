@@ -45,7 +45,7 @@ public abstract sealed class SpoonJavadocVisitor {
 
                     var typeParameters = modified.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
 
-                    classJavadocEntry = processJavadocs(javadoc, null, parameters, typeParameters);
+                    classJavadocEntry = processJavadocs(javadoc, null, parameters, typeParameters, null);
                 }
             }
 
@@ -103,7 +103,7 @@ public abstract sealed class SpoonJavadocVisitor {
                         typeParameters = formalTypeDeclarer.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
                     }
 
-                    javadocEntry = processJavadocs(javadoc, null, parameters, typeParameters);
+                    javadocEntry = processJavadocs(javadoc, null, parameters, typeParameters, null);
                 }
             }
 
@@ -116,7 +116,7 @@ public abstract sealed class SpoonJavadocVisitor {
             if (!comments.isEmpty()) {
                 var javadocComment = comments.get(0);
                 if (javadocComment instanceof CtJavaDoc javadoc) {
-                    javadocEntry = processJavadocs(javadoc, null, null, null);
+                    javadocEntry = processJavadocs(javadoc, null, null, null, null);
                 }
             }
 
@@ -254,7 +254,7 @@ public abstract sealed class SpoonJavadocVisitor {
 
                     var typeParameters = modified.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
 
-                    classJavadocEntry = processJavadocs(javadoc, originalJavadoc, parameters, typeParameters);
+                    classJavadocEntry = processJavadocs(javadoc, originalJavadoc, parameters, typeParameters, clean);
                 }
             }
 
@@ -352,7 +352,7 @@ public abstract sealed class SpoonJavadocVisitor {
                         typeParameters = formalTypeDeclarer.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
                     }
 
-                    javadocEntry = processJavadocs(javadoc, originalJavadoc, parameters, typeParameters);
+                    javadocEntry = processJavadocs(javadoc, originalJavadoc, parameters, typeParameters, clean);
                 }
             }
 
@@ -373,7 +373,7 @@ public abstract sealed class SpoonJavadocVisitor {
             if (!comments.isEmpty()) {
                 var javadocComment = comments.get(0);
                 if (javadocComment instanceof CtJavaDoc javadoc) {
-                    javadocEntry = processJavadocs(javadoc, originalJavadoc, null, null);
+                    javadocEntry = processJavadocs(javadoc, originalJavadoc, null, null, clean);
                 }
             }
 
@@ -381,32 +381,30 @@ public abstract sealed class SpoonJavadocVisitor {
         }
     }
 
-    protected @Nullable JavadocEntry processJavadocs(CtJavaDoc javadoc, @Nullable CtJavaDoc originalJavadoc, String[] parameters, String[] typeParameters) {
+    protected @Nullable JavadocEntry processJavadocs(CtJavaDoc javadoc, @Nullable CtJavaDoc originalJavadoc, String[] parameters, String[] typeParameters, @Nullable CtElement originalParent) {
         CtElement parent = javadoc.getParent();
 
         var content = javadoc.getLongDescription();
         if (!content.equals(javadoc.getShortDescription())) {
             content = javadoc.getShortDescription() + '\n' + content;
         }
-        content = javadocImportProcessor.expand(parent, content);
+        content = javadocImportProcessor.expand(parent, content, originalParent);
         Map<String, List<String>> tags = new HashMap<>();
         for (var tag : javadoc.getTags()) {
             String tagContent = sanitize(tag.getContent());
             if (tag.getType().hasParam()) {
                 tagContent = tag.getParam() + " " + tagContent;
             }
-            tagContent = processTag(parent, tagContent, tag.getType().getName());
+            tagContent = processTag(parent, tagContent, tag.getType().getName(), originalParent);
             tags.computeIfAbsent(tag.getType().getName(), k -> new ArrayList<>()).add(tagContent);
         }
         String finalContent = sanitize(content);
         if (originalJavadoc != null) {
-            CtElement originalParent = originalJavadoc.getParent();
-
             var originalContent = originalJavadoc.getLongDescription();
             if (!originalContent.equals(originalJavadoc.getShortDescription())) {
                 originalContent = originalJavadoc.getShortDescription() + '\n' + originalContent;
             }
-            originalContent = javadocImportProcessor.expand(originalParent, originalContent);
+            originalContent = javadocImportProcessor.expand(originalParent, originalContent, originalParent);
             if (content.equals(originalContent)) {
                 finalContent = null;
             }
@@ -415,7 +413,7 @@ public abstract sealed class SpoonJavadocVisitor {
                 if (tag.getType().hasParam()) {
                     tagContent = tag.getParam() + " " + tagContent;
                 }
-                tagContent = processTag(originalParent, tagContent, tag.getType().getName());
+                tagContent = processTag(originalParent, tagContent, tag.getType().getName(), originalParent);
                 tags.computeIfAbsent(tag.getType().getName(), k -> new ArrayList<>()).remove(tagContent);
                 if (tags.get(tag.getType().getName()).isEmpty()) {
                     tags.remove(tag.getType().getName());
@@ -477,8 +475,8 @@ public abstract sealed class SpoonJavadocVisitor {
         return StringEscapeUtils.escapeHtml4(string);
     }
 
-    private String processTag(CtElement parent, String tagContent, String tag) {
-        tagContent = javadocImportProcessor.processBlockTag(tag, parent, tagContent);
+    private String processTag(CtElement parent, String tagContent, String tag, @Nullable CtElement original) {
+        tagContent = javadocImportProcessor.processBlockTag(tag, parent, tagContent, original);
         tagContent = tagContent.lines().map(String::trim).collect(Collectors.joining("\n"));
         return tagContent;
     }

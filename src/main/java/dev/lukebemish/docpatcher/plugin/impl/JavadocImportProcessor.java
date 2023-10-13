@@ -1,5 +1,6 @@
 package dev.lukebemish.docpatcher.plugin.impl;
 
+import org.jetbrains.annotations.Nullable;
 import spoon.experimental.CtUnresolvedImport;
 import spoon.reflect.declaration.*;
 import spoon.reflect.reference.CtPackageReference;
@@ -7,6 +8,7 @@ import spoon.reflect.reference.CtTypeReference;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -22,9 +24,9 @@ public class JavadocImportProcessor {
         this.classLoader = classLoader;
     }
 
-    private String expandBody(CtElement element, final String owner, final String memberName, final String descFull, String desc) {
+    private String expandBody(CtElement element, final String owner, final String memberName, final String descFull, String desc, @Nullable CtElement original) {
         final StringBuilder reference = new StringBuilder();
-        final String owningClass = getQualifiedClass(element, owner);
+        final String owningClass = getQualifiedClass(element, owner, original);
         final boolean hasDesc = descFull != null && !descFull.isBlank();
         if (owningClass != null) {
             reference.append(owningClass);
@@ -37,14 +39,14 @@ public class JavadocImportProcessor {
             if (desc == null) {
                 desc = "";
             } else {
-                desc = processDesc(element, desc);
+                desc = processDesc(element, desc, original);
             }
             reference.append('(').append(desc).append(')');
         }
         return reference.toString();
     }
 
-    public String processBlockTag(String tag, CtElement element, String doc) {
+    public String processBlockTag(String tag, CtElement element, String doc, @Nullable CtElement original) {
         if ("see".equals(tag)) {
             return MAIN_PATTERN.matcher(doc).replaceAll(result -> {
                 final StringBuilder reference = new StringBuilder();
@@ -52,14 +54,14 @@ public class JavadocImportProcessor {
                 final String memberName = result.group(2);
                 final String descFull = result.group(3);
                 String desc = result.group(4);
-                reference.append(expandBody(element, owner, memberName, descFull, desc));
+                reference.append(expandBody(element, owner, memberName, descFull, desc, original));
                 return reference.toString();
             });
         }
         return doc;
     }
 
-    public String expand(CtElement element, String doc) {
+    public String expand(CtElement element, String doc, @Nullable CtElement original) {
         return PATTERN.matcher(doc).replaceAll(result -> {
             final StringBuilder reference = new StringBuilder()
                 .append('@').append(result.group(1)).append(result.group(2));
@@ -67,23 +69,23 @@ public class JavadocImportProcessor {
             final String memberName = result.group(4);
             final String descFull = result.group(5);
             String desc = result.group(6);
-            reference.append(expandBody(element, owner, memberName, descFull, desc));
+            reference.append(expandBody(element, owner, memberName, descFull, desc, original));
             return reference.toString();
         });
     }
 
-    private String getQualifiedClass(CtElement element, String original) {
-        if (original == null || original.isBlank()) {
+    private String getQualifiedClass(CtElement element, String name, @Nullable CtElement original) {
+        if (name == null || name.isBlank()) {
             return null;
         }
-        var type = qualifyType(element, original);
+        var type = qualifyType(element, name);
         if (type.isPresent()) {
-            return type.get().getQualifiedName();
+            return simplifyName(element, type.get(), original);
         }
-        return original;
+        return name;
     }
 
-    private String processDesc(CtElement element, String desc) {
+    private String processDesc(CtElement element, String desc, @Nullable CtElement original) {
         List<String> builder = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         for (int i = 0; i < desc.length(); i++) {
@@ -91,7 +93,7 @@ public class JavadocImportProcessor {
             builder.add(current.toString().trim());
             current = new StringBuilder();
         }
-        return builder.stream().map(s -> getQualifiedClass(element, s)).collect(Collectors.joining(", "));
+        return builder.stream().map(s -> getQualifiedClass(element, s, original)).collect(Collectors.joining(", "));
     }
 
     private int parseSimpleName(StringBuilder builder, String full, int start) {
@@ -104,6 +106,41 @@ public class JavadocImportProcessor {
             }
         }
         return full.length();
+    }
+
+    private String simplifyName(CtElement context, CtType<?> type, @Nullable CtElement original) {
+        if (original == null) {
+            return type.getQualifiedName();
+        }
+        if (type.getPackage().getQualifiedName().equals("java.lang")) {
+            return type.getSimpleName();
+        }
+        CtType<?> contextType = context instanceof CtType ? (CtType<?>) context : context.getParent(CtType.class);
+        if (contextType != null && contextType.getPackage() != null && contextType.getPackage().getQualifiedName().equals(type.getPackage().getQualifiedName())) {
+            return type.getSimpleName();
+        }
+        CtCompilationUnit parentUnit = original.getPosition().getCompilationUnit();
+        return parentUnit.getImports()
+            .stream()
+            .map(it -> {
+                if (it.getImportKind() == CtImportKind.UNRESOLVED) {
+                    var ref = ((CtUnresolvedImport) it).getUnresolvedReference();
+                    if (ref.endsWith("*")) {
+                        ref = ref.substring(0, ref.length() - 1);
+                    }
+                    return ref.equals(type.getQualifiedName()) ? type.getSimpleName() : null;
+                } else if (it.getImportKind() == CtImportKind.ALL_TYPES) {
+                    var packageName = ((CtPackageReference) it.getReference()).getQualifiedName();
+                    return packageName.equals(type.getPackage().getQualifiedName()) ? type.getQualifiedName().substring(packageName.length() + 1) : null;
+                } else if (it.getImportKind() == CtImportKind.TYPE) {
+                    var typeName = it.getReference().getSimpleName();
+                    return typeName.equals(type.getSimpleName()) || type.getSimpleName().startsWith(typeName+".") ? type.getSimpleName() : null;
+                }
+                return null;
+            })
+            .filter(Objects::nonNull)
+            .findFirst()
+            .orElse(type.getQualifiedName());
     }
 
     /*
@@ -171,8 +208,8 @@ public class JavadocImportProcessor {
     private Optional<CtType<?>> getImportedType(CtElement context, String name, CtCompilationUnit parentUnit) {
         Optional<CtType<?>> referencedImportedType = parentUnit.getImports()
             .stream()
-            .filter(it -> it.getImportKind() != CtImportKind.UNRESOLVED)
-            .filter(it -> it.getReference().getSimpleName().equals(name))
+            .filter(it -> it.getImportKind() == CtImportKind.TYPE)
+            .filter(it -> it.getReference().getSimpleName().equals(name) || name.startsWith(it.getReference().getSimpleName()+"."))
             .findAny()
             .flatMap(ctImport ->
                 ctImport.getReferencedTypes()
@@ -180,30 +217,52 @@ public class JavadocImportProcessor {
                     .filter(it -> it.getSimpleName().equals(name))
                     .findFirst()
                     .map(CtTypeReference::getTypeDeclaration)
+                    .flatMap(type -> {
+                        if (!name.equals(ctImport.getReference().getSimpleName())) {
+                            String remaining = name.substring(ctImport.getReference().getSimpleName().length() + 1);
+                            String[] parts = remaining.split("\\.");
+                            CtType<?> current = type;
+                            for (String part : parts) {
+                                current = current.getNestedType(part);
+                                if (current == null) {
+                                    return Optional.empty();
+                                }
+                            }
+                            return Optional.of(current);
+                        }
+                        return Optional.of(type);
+                    })
             );
 
         if (referencedImportedType.isPresent()) {
             return referencedImportedType;
         }
 
-        return parentUnit.getImports().stream()
+        referencedImportedType = parentUnit.getImports().stream()
             .filter(it -> it.getImportKind() == CtImportKind.ALL_TYPES)
             .filter(it -> it.getReference() instanceof CtPackageReference)
             .flatMap(it -> {
                 String reference = ((CtPackageReference) it.getReference()).getQualifiedName();
                 return tryLoadModelOrReflection(context, reference + "." + name).stream();
-            }).findFirst().or(() -> parentUnit.getImports()
-                .stream()
-                .filter(it -> it.getImportKind() == CtImportKind.UNRESOLVED)
-                .filter(it -> ((CtUnresolvedImport) it).getUnresolvedReference().endsWith("*"))
-                .flatMap(it -> {
-                    String reference = ((CtUnresolvedImport) it).getUnresolvedReference();
-                    reference = reference.substring(0, reference.length() - 1);
+            }).findFirst();
 
-                    return tryLoadModelOrReflection(context, reference + name).stream();
-                })
-                .findFirst()
-            );
+        if (referencedImportedType.isPresent()) {
+            return referencedImportedType;
+        }
+
+        referencedImportedType = parentUnit.getImports()
+            .stream()
+            .filter(it -> it.getImportKind() == CtImportKind.UNRESOLVED)
+            .filter(it -> ((CtUnresolvedImport) it).getUnresolvedReference().endsWith("*"))
+            .flatMap(it -> {
+                String reference = ((CtUnresolvedImport) it).getUnresolvedReference();
+                reference = reference.substring(0, reference.length() - 1);
+
+                return tryLoadModelOrReflection(context, reference + name).stream();
+            })
+            .findFirst();
+
+        return referencedImportedType;
     }
 
     private Optional<CtType<?>> tryLoadModelOrReflection(CtElement context, String name) {
