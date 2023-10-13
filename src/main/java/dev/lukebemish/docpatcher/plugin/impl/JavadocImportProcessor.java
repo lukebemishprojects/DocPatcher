@@ -66,6 +66,13 @@ public class JavadocImportProcessor {
         return reference.toString();
     }
 
+    private String prettifyCombinedBody(String originalName) {
+        if (originalName.startsWith("#")) {
+            return originalName.substring(1);
+        }
+        return originalName.replace('#', '.');
+    }
+
     public String processBlockTag(String tag, CtElement element, String doc, @Nullable CtElement original) {
         if ("see".equals(tag)) {
             return MAIN_PATTERN.matcher(doc).replaceAll(result -> {
@@ -80,7 +87,7 @@ public class JavadocImportProcessor {
                 if (result.group(5) != null) {
                     reference.append(' ').append(result.group(5));
                 } else if (!fqn.equals(originalName)) {
-                    reference.append(' ').append(originalName.replace('#','.'));
+                    reference.append(' ').append(prettifyCombinedBody(originalName));
                 }
                 return reference.toString();
             });
@@ -102,7 +109,7 @@ public class JavadocImportProcessor {
             if (result.group(7) != null) {
                 reference.append(' ').append(result.group(5));
             } else if (!fqn.equals(originalName)) {
-                reference.append(' ').append(originalName.replace('#','.'));
+                reference.append(' ').append(prettifyCombinedBody(originalName));
             }
             return reference.toString();
         });
