@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class JavadocImportProcessor {
-    private static final String MAIN = "(?<ownerName>[\\w$.]*)(?:#(?<memberName>[\\w%]+)?(?<descFull>\\((?<desc>[\\w$., \\[\\]]+)?\\))?)?";
+    private static final String MAIN = "(?<ownerName>[\\w$.]*)(?:#(?<memberName>[\\w%]+)?(?<descFull>\\((?<desc>[\\w$., \\[\\]]+)?\\))?)?(?:\\s+(?<label>^[}\n\r]+))?";
     private static final Pattern PATTERN = Pattern.compile("@(?<tag>link|linkplain|see|value)(?<space>\\s+)" + MAIN);
     private static final Pattern MAIN_PATTERN = Pattern.compile("^"+MAIN);
 
@@ -46,6 +46,26 @@ public class JavadocImportProcessor {
         return reference.toString();
     }
 
+    private String combineBody(final String owner, final String memberName, final String descFull, final String desc) {
+        final StringBuilder reference = new StringBuilder();
+        final boolean hasDesc = descFull != null && !descFull.isBlank();
+        if (owner != null) {
+            reference.append(owner);
+        }
+        if (memberName != null) {
+            reference.append('#');
+            reference.append(memberName);
+        }
+        if (hasDesc) {
+            if (desc == null) {
+                reference.append("()");
+            } else {
+                reference.append('(').append(desc).append(')');
+            }
+        }
+        return reference.toString();
+    }
+
     public String processBlockTag(String tag, CtElement element, String doc, @Nullable CtElement original) {
         if ("see".equals(tag)) {
             return MAIN_PATTERN.matcher(doc).replaceAll(result -> {
@@ -54,7 +74,14 @@ public class JavadocImportProcessor {
                 final String memberName = result.group(2);
                 final String descFull = result.group(3);
                 String desc = result.group(4);
-                reference.append(expandBody(element, owner, memberName, descFull, desc, original));
+                var fqn = expandBody(element, owner, memberName, descFull, desc, original);
+                reference.append(fqn);
+                var originalName = combineBody(owner, memberName, descFull, desc);
+                if (result.group(5) != null) {
+                    reference.append(' ').append(result.group(5));
+                } else if (!fqn.equals(originalName)) {
+                    reference.append(' ').append(originalName);
+                }
                 return reference.toString();
             });
         }
@@ -69,7 +96,14 @@ public class JavadocImportProcessor {
             final String memberName = result.group(4);
             final String descFull = result.group(5);
             String desc = result.group(6);
-            reference.append(expandBody(element, owner, memberName, descFull, desc, original));
+            var fqn = expandBody(element, owner, memberName, descFull, desc, original);
+            reference.append(fqn);
+            var originalName = combineBody(owner, memberName, descFull, desc);
+            if (result.group(7) != null) {
+                reference.append(' ').append(result.group(5));
+            } else if (!fqn.equals(originalName)) {
+                reference.append(' ').append(originalName);
+            }
             return reference.toString();
         });
     }
