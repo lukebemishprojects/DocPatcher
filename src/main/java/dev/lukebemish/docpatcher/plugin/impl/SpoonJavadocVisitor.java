@@ -27,26 +27,28 @@ public abstract sealed class SpoonJavadocVisitor {
         this.javadocImportProcessor = new JavadocImportProcessor(classLoader);
     }
 
+    protected @Nullable CtJavaDoc getJavadoc(CtElement element) {
+        var comments = element.getComments();
+        return comments.stream().filter(it -> it instanceof CtJavaDoc).map(it -> ((CtJavaDoc) it)).findFirst().orElse(null);
+    }
+
     public static final class Simple extends SpoonJavadocVisitor {
         public Simple(boolean sanitize, ClassLoader classLoader) {
             super(sanitize, classLoader);
         }
 
         public ClassJavadoc visit(CtType<?> modified) {
-            var comments = modified.getComments();
+            var javadoc = getJavadoc(modified);
             JavadocEntry classJavadocEntry = null;
-            if (!comments.isEmpty()) {
-                var javadocComment = comments.get(0);
-                if (javadocComment instanceof CtJavaDoc javadoc) {
-                    String[] parameters = null;
-                    if (modified instanceof CtRecord ctRecord) {
-                        parameters = ctRecord.getRecordComponents().stream().map(CtRecordComponent::getSimpleName).toArray(String[]::new);
-                    }
-
-                    var typeParameters = modified.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
-
-                    classJavadocEntry = processJavadocs(javadoc, null, parameters, typeParameters, null);
+            if (javadoc != null) {
+                String[] parameters = null;
+                if (modified instanceof CtRecord ctRecord) {
+                    parameters = ctRecord.getRecordComponents().stream().map(CtRecordComponent::getSimpleName).toArray(String[]::new);
                 }
+
+                var typeParameters = modified.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
+
+                classJavadocEntry = processJavadocs(javadoc, null, parameters, typeParameters, null);
             }
 
             Map<String, JavadocEntry> methods = new HashMap<>();
@@ -91,33 +93,27 @@ public abstract sealed class SpoonJavadocVisitor {
         }
 
         private JavadocEntry visit(CtExecutable<?> modified) {
-            var comments = modified.getComments();
+            var javadoc = getJavadoc(modified);
             JavadocEntry javadocEntry = null;
-            if (!comments.isEmpty()) {
-                var javadocComment = comments.get(0);
-                if (javadocComment instanceof CtJavaDoc javadoc) {
-                    String[] parameters = modified.getParameters().stream().map(CtParameter::getSimpleName).toArray(String[]::new);
+            if (javadoc != null) {
+                String[] parameters = modified.getParameters().stream().map(CtParameter::getSimpleName).toArray(String[]::new);
 
-                    String[] typeParameters = null;
-                    if (modified instanceof CtFormalTypeDeclarer formalTypeDeclarer) {
-                        typeParameters = formalTypeDeclarer.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
-                    }
-
-                    javadocEntry = processJavadocs(javadoc, null, parameters, typeParameters, null);
+                String[] typeParameters = null;
+                if (modified instanceof CtFormalTypeDeclarer formalTypeDeclarer) {
+                    typeParameters = formalTypeDeclarer.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
                 }
+
+                javadocEntry = processJavadocs(javadoc, null, parameters, typeParameters, null);
             }
 
             return javadocEntry;
         }
 
         private JavadocEntry visit(CtField<?> modified) {
-            var comments = modified.getComments();
+            var javadoc = getJavadoc(modified);
             JavadocEntry javadocEntry = null;
-            if (!comments.isEmpty()) {
-                var javadocComment = comments.get(0);
-                if (javadocComment instanceof CtJavaDoc javadoc) {
-                    javadocEntry = processJavadocs(javadoc, null, null, null, null);
-                }
+            if (javadoc != null) {
+                javadocEntry = processJavadocs(javadoc, null, null, null, null);
             }
 
             return javadocEntry;
@@ -133,17 +129,14 @@ public abstract sealed class SpoonJavadocVisitor {
         }
 
         public ClassJavadoc visit(CtType<?> clean) {
-            var comments = clean.getComments();
+            var javadoc = getJavadoc(clean);
             JavadocEntry classJavadocEntry = null;
-            if (!comments.isEmpty()) {
-                var javadocComment = comments.get(0);
-                if (javadocComment instanceof CtJavaDoc javadoc) {
-                    String content = javadoc.getShortDescription();
-                    if (!content.equals(javadoc.getLongDescription())) {
-                        content = content + '\n' + javadoc.getLongDescription();
-                    }
-                    classJavadocEntry = fromContent(content);
+            if (javadoc != null) {
+                String content = javadoc.getShortDescription();
+                if (!content.equals(javadoc.getLongDescription())) {
+                    content = content + '\n' + javadoc.getLongDescription();
                 }
+                classJavadocEntry = fromContent(content);
             }
 
             Map<String, JavadocEntry> methods = new HashMap<>();
@@ -188,34 +181,28 @@ public abstract sealed class SpoonJavadocVisitor {
         }
 
         public JavadocEntry visit(CtExecutable<?> clean) {
-            var comments = clean.getComments();
+            var javadoc = getJavadoc(clean);
             JavadocEntry javadocEntry = null;
-            if (!comments.isEmpty()) {
-                var javadocComment = comments.get(0);
-                if (javadocComment instanceof CtJavaDoc javadoc) {
-                    String content = javadoc.getShortDescription();
-                    if (!content.equals(javadoc.getLongDescription())) {
-                        content = content + '\n' + javadoc.getLongDescription();
-                    }
-                    javadocEntry = fromContent(content);
+            if (javadoc != null) {
+                String content = javadoc.getShortDescription();
+                if (!content.equals(javadoc.getLongDescription())) {
+                    content = content + '\n' + javadoc.getLongDescription();
                 }
+                javadocEntry = fromContent(content);
             }
 
             return javadocEntry;
         }
 
         public JavadocEntry visit(CtField<?> clean) {
-            var comments = clean.getComments();
+            var javadoc = getJavadoc(clean);
             JavadocEntry javadocEntry = null;
-            if (!comments.isEmpty()) {
-                var javadocComment = comments.get(0);
-                if (javadocComment instanceof CtJavaDoc javadoc) {
-                    String content = javadoc.getShortDescription();
-                    if (!content.equals(javadoc.getLongDescription())) {
-                        content = content + '\n' + javadoc.getLongDescription();
-                    }
-                    javadocEntry = fromContent(content);
+            if (javadoc != null) {
+                String content = javadoc.getShortDescription();
+                if (!content.equals(javadoc.getLongDescription())) {
+                    content = content + '\n' + javadoc.getLongDescription();
                 }
+                javadocEntry = fromContent(content);
             }
 
             return javadocEntry;
@@ -234,28 +221,18 @@ public abstract sealed class SpoonJavadocVisitor {
         }
 
         public ClassJavadoc visit(CtType<?> clean, CtType<?> modified) {
-            var comments = modified.getComments();
-            var originalComments = clean.getComments();
-            CtJavaDoc originalJavadoc = null;
-            if (!originalComments.isEmpty()) {
-                var javadocComment = originalComments.get(0);
-                if (javadocComment instanceof CtJavaDoc javadoc) {
-                    originalJavadoc = javadoc;
-                }
-            }
+            var javadoc = getJavadoc(modified);
+            var originalJavadoc = getJavadoc(clean);
             JavadocEntry classJavadocEntry = null;
-            if (!comments.isEmpty()) {
-                var javadocComment = comments.get(0);
-                if (javadocComment instanceof CtJavaDoc javadoc) {
-                    String[] parameters = null;
-                    if (modified instanceof CtRecord ctRecord) {
-                        parameters = ctRecord.getRecordComponents().stream().map(CtRecordComponent::getSimpleName).toArray(String[]::new);
-                    }
-
-                    var typeParameters = modified.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
-
-                    classJavadocEntry = processJavadocs(javadoc, originalJavadoc, parameters, typeParameters, clean);
+            if (javadoc != null) {
+                String[] parameters = null;
+                if (modified instanceof CtRecord ctRecord) {
+                    parameters = ctRecord.getRecordComponents().stream().map(CtRecordComponent::getSimpleName).toArray(String[]::new);
                 }
+
+                var typeParameters = modified.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
+
+                classJavadocEntry = processJavadocs(javadoc, originalJavadoc, parameters, typeParameters, clean);
             }
 
             Map<String, JavadocEntry> methods = new HashMap<>();
@@ -332,49 +309,29 @@ public abstract sealed class SpoonJavadocVisitor {
         }
 
         private JavadocEntry visit(CtExecutable<?> clean, CtExecutable<?> modified) {
-            var comments = modified.getComments();
-            var originalComments = clean.getComments();
-            CtJavaDoc originalJavadoc = null;
-            if (!originalComments.isEmpty()) {
-                var javadocComment = originalComments.get(0);
-                if (javadocComment instanceof CtJavaDoc javadoc) {
-                    originalJavadoc = javadoc;
-                }
-            }
+            var javadoc = getJavadoc(modified);
+            var originalJavadoc = getJavadoc(clean);
             JavadocEntry javadocEntry = null;
-            if (!comments.isEmpty()) {
-                var javadocComment = comments.get(0);
-                if (javadocComment instanceof CtJavaDoc javadoc) {
-                    String[] parameters = modified.getParameters().stream().map(CtParameter::getSimpleName).toArray(String[]::new);
+            if (javadoc != null) {
+                String[] parameters = modified.getParameters().stream().map(CtParameter::getSimpleName).toArray(String[]::new);
 
-                    String[] typeParameters = null;
-                    if (modified instanceof CtFormalTypeDeclarer formalTypeDeclarer) {
-                        typeParameters = formalTypeDeclarer.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
-                    }
-
-                    javadocEntry = processJavadocs(javadoc, originalJavadoc, parameters, typeParameters, clean);
+                String[] typeParameters = null;
+                if (modified instanceof CtFormalTypeDeclarer formalTypeDeclarer) {
+                    typeParameters = formalTypeDeclarer.getFormalCtTypeParameters().stream().map(CtTypeParameter::getSimpleName).toArray(String[]::new);
                 }
+
+                javadocEntry = processJavadocs(javadoc, originalJavadoc, parameters, typeParameters, clean);
             }
 
             return javadocEntry;
         }
 
         private JavadocEntry visit(CtField<?> clean, CtField<?> modified) {
-            var comments = modified.getComments();
-            var originalComments = clean.getComments();
-            CtJavaDoc originalJavadoc = null;
-            if (!originalComments.isEmpty()) {
-                var javadocComment = originalComments.get(0);
-                if (javadocComment instanceof CtJavaDoc javadoc) {
-                    originalJavadoc = javadoc;
-                }
-            }
+            var javadoc = getJavadoc(modified);
+            var originalJavadoc = getJavadoc(clean);
             JavadocEntry javadocEntry = null;
-            if (!comments.isEmpty()) {
-                var javadocComment = comments.get(0);
-                if (javadocComment instanceof CtJavaDoc javadoc) {
-                    javadocEntry = processJavadocs(javadoc, originalJavadoc, null, null, clean);
-                }
+            if (javadoc != null) {
+                javadocEntry = processJavadocs(javadoc, originalJavadoc, null, null, clean);
             }
 
             return javadocEntry;
@@ -395,8 +352,8 @@ public abstract sealed class SpoonJavadocVisitor {
             if (tag.getType().hasParam()) {
                 tagContent = tag.getParam() + " " + tagContent;
             }
-            tagContent = processTag(parent, tagContent, tag.getType().getName(), originalParent);
-            tags.computeIfAbsent(tag.getType().getName(), k -> new ArrayList<>()).add(tagContent);
+            tagContent = processTag(parent, tagContent, tag.getRealName(), originalParent);
+            tags.computeIfAbsent(tag.getRealName(), k -> new ArrayList<>()).add(tagContent);
         }
         String finalContent = sanitize(content);
         if (originalJavadoc != null) {
@@ -413,10 +370,10 @@ public abstract sealed class SpoonJavadocVisitor {
                 if (tag.getType().hasParam()) {
                     tagContent = tag.getParam() + " " + tagContent;
                 }
-                tagContent = processTag(originalParent, tagContent, tag.getType().getName(), originalParent);
-                tags.computeIfAbsent(tag.getType().getName(), k -> new ArrayList<>()).remove(tagContent);
-                if (tags.get(tag.getType().getName()).isEmpty()) {
-                    tags.remove(tag.getType().getName());
+                tagContent = processTag(originalParent, tagContent, tag.getRealName(), originalParent);
+                tags.computeIfAbsent(tag.getRealName(), k -> new ArrayList<>()).remove(tagContent);
+                if (tags.get(tag.getRealName()).isEmpty()) {
+                    tags.remove(tag.getRealName());
                 }
             }
         }
