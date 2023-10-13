@@ -74,7 +74,7 @@ public abstract class MissedPatchesTask extends DefaultTask {
                     if (remainder != null) {
                         var output = getOutputDirectory().get().getAsFile().toPath().resolve(className+ ".docpatcher.json");
                         Files.createDirectories(output.getParent());
-                        Files.writeString(output, Utils.GSON.toJson(remainder));
+                        Files.writeString(output, Utils.toJson(remainder));
                     }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -90,7 +90,7 @@ public abstract class MissedPatchesTask extends DefaultTask {
             if (Files.exists(path)) {
                 try {
                     String contents = Files.readString(path);
-                    return Utils.GSON.fromJson(contents, ClassJavadoc.class);
+                    return Utils.fromJson(contents);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }

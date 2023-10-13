@@ -8,7 +8,6 @@ import net.neoforged.javadoctor.injector.JavadocInjector;
 import net.neoforged.javadoctor.injector.JavadocProvider;
 import net.neoforged.javadoctor.injector.ast.JClassParser;
 import net.neoforged.javadoctor.injector.spoon.SpoonClassParser;
-import net.neoforged.javadoctor.spec.ClassJavadoc;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
@@ -129,7 +128,7 @@ public abstract class ApplyPatchesTask extends DefaultTask {
             if (Files.exists(path)) {
                 try {
                     String contents = Files.readString(path);
-                    return Utils.GSON.fromJson(contents, ClassJavadoc.class);
+                    return Utils.fromJson(contents);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
