@@ -80,7 +80,7 @@ public class JavadocImportProcessor {
                 if (result.group(5) != null) {
                     reference.append(' ').append(result.group(5));
                 } else if (!fqn.equals(originalName)) {
-                    reference.append(' ').append(originalName);
+                    reference.append(' ').append(originalName.replace('#','.'));
                 }
                 return reference.toString();
             });
@@ -102,7 +102,7 @@ public class JavadocImportProcessor {
             if (result.group(7) != null) {
                 reference.append(' ').append(result.group(5));
             } else if (!fqn.equals(originalName)) {
-                reference.append(' ').append(originalName);
+                reference.append(' ').append(originalName.replace('#','.'));
             }
             return reference.toString();
         });
