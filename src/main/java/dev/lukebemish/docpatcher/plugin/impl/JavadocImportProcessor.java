@@ -112,7 +112,7 @@ public class JavadocImportProcessor {
         if (original == null) {
             return type.getQualifiedName();
         }
-        if (type.getPackage().getQualifiedName().equals("java.lang")) {
+        if (type.getPackage() != null && type.getPackage().getQualifiedName().equals("java.lang")) {
             return type.getSimpleName();
         }
         CtType<?> contextType = context instanceof CtType ? (CtType<?>) context : context.getParent(CtType.class);
