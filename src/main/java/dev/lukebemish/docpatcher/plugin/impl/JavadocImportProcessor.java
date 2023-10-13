@@ -116,7 +116,7 @@ public class JavadocImportProcessor {
             return type.getSimpleName();
         }
         CtType<?> contextType = context instanceof CtType ? (CtType<?>) context : context.getParent(CtType.class);
-        if (contextType != null && contextType.getPackage() != null && contextType.getPackage().getQualifiedName().equals(type.getPackage().getQualifiedName())) {
+        if (contextType != null && contextType.getPackage() != null && type.getPackage() != null && contextType.getPackage().getQualifiedName().equals(type.getPackage().getQualifiedName())) {
             return type.getSimpleName();
         }
         CtCompilationUnit parentUnit = original.getPosition().getCompilationUnit();
