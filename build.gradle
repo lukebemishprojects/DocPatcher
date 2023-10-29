@@ -48,6 +48,19 @@ gradlePlugin {
     }
 }
 
+jar {
+    manifest {
+        attributes['Specification-Title'] = 'DocPatcher'
+        attributes['Specification-Version'] = version.toString().split('-')[0].split(/\+/)[0]
+        attributes['Specification-Vendor'] = 'Luke Bemish'
+        attributes['Implementation-Title'] = 'DocPatcher'
+        attributes['Implementation-Version'] = version
+        attributes['Implementation-Vendor'] = 'Luke Bemish'
+        attributes['Implementation-Commit'] = managedVersioning.hash.get()
+        attributes['Implementation-Timestampt'] = managedVersioning.timestamp.get()
+    }
+}
+
 if (System.getenv('GRADLE_PLUGIN_KEY')) {
     ext['gradle.publish.key'] = System.getenv('GRADLE_PLUGIN_KEY')
     ext['gradle.publish.secret'] = System.getenv('GRADLE_PLUGIN_SECRET')
