@@ -1,1 +1,14 @@
+pluginManagement {
+    repositories {
+        maven {
+            name = "Luke's Maven"
+            url = 'https://maven.lukebemish.dev/releases/'
+            content {
+                includeGroupAndSubgroups 'dev.lukebemish'
+            }
+        }
+        gradlePluginPortal()
+    }
+}
+
 rootProject.name = 'docpatcher'
