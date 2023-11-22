@@ -118,17 +118,17 @@ public class Data {
         }
         if (javadoc.methods() != null && !javadoc.methods().isEmpty()) {
             JsonObject methods = new JsonObject();
-            javadoc.methods().entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> methods.add(entry.getKey(), serialize(entry.getValue())));
+            javadoc.methods().entrySet().stream().filter(it -> it.getValue() != null).sorted(Map.Entry.comparingByKey()).forEach(entry -> methods.add(entry.getKey(), serialize(entry.getValue())));
             object.add("methods", methods);
         }
         if (javadoc.fields() != null && !javadoc.fields().isEmpty()) {
             JsonObject fields = new JsonObject();
-            javadoc.fields().entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> fields.add(entry.getKey(), serialize(entry.getValue())));
+            javadoc.fields().entrySet().stream().filter(it -> it.getValue() != null).sorted(Map.Entry.comparingByKey()).forEach(entry -> fields.add(entry.getKey(), serialize(entry.getValue())));
             object.add("fields", fields);
         }
         if (javadoc.innerClasses() != null && !javadoc.innerClasses().isEmpty()) {
             JsonObject innerClasses = new JsonObject();
-            javadoc.innerClasses().entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> innerClasses.add(entry.getKey(), serialize(entry.getValue())));
+            javadoc.innerClasses().entrySet().stream().filter(it -> it.getValue() != null).sorted(Map.Entry.comparingByKey()).forEach(entry -> innerClasses.add(entry.getKey(), serialize(entry.getValue())));
             object.add("innerClasses", innerClasses);
         }
         return object;
