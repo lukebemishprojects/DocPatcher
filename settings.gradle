@@ -40,7 +40,7 @@ managedVersioning {
                 readOnly = false
                 gradlew 'Tag Release', 'tagRelease'
                 gradlew 'Build', 'build'
-                gradlew 'Publish', 'publish'
+                gradlew 'Publish', 'publishPlugins'
                 push()
                 recordVersion 'Record Version', 'version'
                 dependencySubmission()
