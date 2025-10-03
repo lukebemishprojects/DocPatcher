@@ -1,13 +1,17 @@
 package dev.lukebemish.docpatcher.plugin.api;
 
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.ArchiveOperations;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.file.FileSystemOperations;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.TaskAction;
+
+import javax.inject.Inject;
 
 public abstract class DocsExtractTask extends DefaultTask {
     @InputFiles
@@ -23,12 +27,18 @@ public abstract class DocsExtractTask extends DefaultTask {
         getReadOnly().convention(false);
     }
 
+    @Inject
+    protected abstract FileSystemOperations getFileSystemOperations();
+
+    @Inject
+    protected abstract ArchiveOperations getArchiveOperations();
+
     @TaskAction
     public void extract() {
         for (var source : getSources()) {
-            getProject().delete(getOutputDirectory());
-            getProject().copy(spec -> {
-                spec.from(getProject().zipTree(source));
+            getFileSystemOperations().delete(s -> s.delete(getOutputDirectory()));
+            getFileSystemOperations().copy(spec -> {
+                spec.from(getArchiveOperations().zipTree(source));
                 spec.into(getOutputDirectory());
                 if (getReadOnly().get()) {
                     spec.eachFile(fileCopyDetails -> {

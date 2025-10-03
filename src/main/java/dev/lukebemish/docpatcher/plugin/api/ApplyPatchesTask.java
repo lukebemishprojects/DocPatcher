@@ -12,6 +12,7 @@ import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.file.FileSystemOperations;
 import org.gradle.api.file.RelativePath;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Property;
@@ -66,6 +67,9 @@ public abstract class ApplyPatchesTask extends DefaultTask {
         return Utils.makeClassLoader(getClasspath().getFiles().stream().map(File::getPath));
     }
 
+    @Inject
+    protected abstract FileSystemOperations getFileSystemOperations();
+
     @TaskAction
     public void applyPatches() {
         if (getSource().get().getAsFileTree().isEmpty()) {
@@ -74,7 +78,7 @@ public abstract class ApplyPatchesTask extends DefaultTask {
 
         ClassLoader sourceClassLoader = makeClassLoader();
 
-        getProject().delete(getOutputDirectory());
+        getFileSystemOperations().delete(s -> s.delete(getOutputDirectory()));
         JavadocInjector injector = createInjector(sourceClassLoader);
         getSource().getAsFileTree().visit(fileVisitDetails -> {
             RelativePath relativePath = fileVisitDetails.getRelativePath();
@@ -90,7 +94,7 @@ public abstract class ApplyPatchesTask extends DefaultTask {
                         visitor.visit(type);
                     }
                     contents = visitor.build();
-                    var result = injector.injectDocs(className, contents, null);
+                    var result = injector.injectDocs(className, className, contents, null);
                     result.getResult().ifPresentOrElse(injectionResult -> {
                         try {
                             var output = getOutputDirectory().get().getAsFile().toPath().resolve(fileName);

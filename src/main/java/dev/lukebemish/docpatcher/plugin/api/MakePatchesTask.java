@@ -7,6 +7,7 @@ import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.file.FileSystemOperations;
 import org.gradle.api.file.RelativePath;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Property;
@@ -51,13 +52,16 @@ public abstract class MakePatchesTask extends DefaultTask {
         return Utils.makeClassLoader(getClasspath().getFiles().stream().map(File::getPath));
     }
 
+    @Inject
+    protected abstract FileSystemOperations getFileSystemOperations();
+
     @TaskAction
     public void generatePatches() {
         if (getClean().get().getAsFileTree().isEmpty() || getModified().get().getAsFileTree().isEmpty()) {
             return;
         }
 
-        getProject().delete(getOutputDirectory());
+        getFileSystemOperations().delete(s -> s.delete(getOutputDirectory()));
 
         ClassLoader sourceClassLoader = makeClassLoader();
 

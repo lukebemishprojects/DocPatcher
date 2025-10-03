@@ -8,6 +8,7 @@ import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.file.FileSystemOperations;
 import org.gradle.api.file.RelativePath;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Property;
@@ -48,6 +49,9 @@ public abstract class MissedPatchesTask extends DefaultTask {
         return Utils.makeClassLoader(getClasspath().getFiles().stream().map(File::getPath));
     }
 
+    @Inject
+    protected abstract FileSystemOperations getFileSystemOperations();
+
     @TaskAction
     public void missedPatches() {
         if (getSource().get().getAsFileTree().isEmpty() || getPatches().get().getAsFileTree().isEmpty()) {
@@ -56,7 +60,7 @@ public abstract class MissedPatchesTask extends DefaultTask {
 
         ClassLoader sourceClassLoader = makeClassLoader();
 
-        getProject().delete(getOutputDirectory());
+        getFileSystemOperations().delete(s -> s.delete(getOutputDirectory()));
         SpoonRemainingVisitor visitor = new SpoonRemainingVisitor();
         JavadocProvider provider = makeProvider();
         getSource().getAsFileTree().visit(fileVisitDetails -> {
