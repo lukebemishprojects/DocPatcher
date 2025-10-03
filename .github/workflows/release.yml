@@ -1,32 +1,123 @@
-name: Release
-concurrency: ci-${{ github.ref }}
-on:
-    workflow_dispatch:
-jobs:
-    build:
-        runs-on: ubuntu-22.04
-        steps:
-            - name: Setup Java
-              run: |
-                  echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
-            - uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
-            - uses: fregante/setup-git-user@v2
-            - uses: gradle/gradle-build-action@v2
-              name: Setup Gradle
-              with:
-                  cache-read-only: ${{ !startsWith(github.ref, 'refs/heads/main') }}
-            - name: Tag Release
-              run: ./gradlew tagRelease --configuration-cache
-            - name: Build
-              run: ./gradlew build --configuration-cache
-            - name: Publish
-              run: ./gradlew publishPlugins --configuration-cache
-              env:
-                GRADLE_PLUGIN_KEY: ${{ secrets.GRADLE_PLUGIN_KEY }}
-                GRADLE_PLUGIN_SECRET: ${{ secrets.GRADLE_PLUGIN_SECRET }}
-            - name: Push Changes
-              run: |
-                git push
-                git push --tags
+{
+    "name": "Release",
+    "concurrency": "ci-${{ github.ref }}",
+    "on": {
+        "workflow_dispatch": {
+            
+        }
+    },
+    "jobs": {
+        "build": {
+            "runs-on": "ubuntu-22.04",
+            "steps": [
+                {
+                    "name": "Setup Java",
+                    "run": "echo \"JAVA_HOME=$JAVA_HOME_21_X64\" >> \"$GITHUB_ENV\""
+                },
+                {
+                    "name": "Checkout",
+                    "uses": "actions/checkout@v4",
+                    "with": {
+                        "fetch-depth": "0"
+                    }
+                },
+                {
+                    "name": "Validate Gradle Wrapper",
+                    "uses": "gradle/actions/wrapper-validation@v4"
+                },
+                {
+                    "name": "Cache",
+                    "uses": "actions/cache@v4",
+                    "with": {
+                        "path": "**/.gradle/loom-cache\n**/.gradle/quilt-loom-cache",
+                        "key": "${{ runner.os }}-gradle-${{ hashFiles('**/libs.versions.*', '**/*.gradle*', '**/gradle-wrapper.properties') }}",
+                        "restore-keys": "${{ runner.os }}-gradle-"
+                    }
+                },
+                {
+                    "name": "Setup Gradle",
+                    "uses": "gradle/actions/setup-gradle@v4",
+                    "with": {
+                        "gradle-home-cache-cleanup": true
+                    }
+                },
+                {
+                    "uses": "fregante/setup-git-user@v2"
+                },
+                {
+                    "name": "Tag Release",
+                    "id": "tag_release",
+                    "run": "./gradlew tagRelease",
+                    "env": {
+                        "BUILD_CACHE_PASSWORD": "${{ secrets.BUILD_CACHE_PASSWORD }}",
+                        "BUILD_CACHE_USER": "${{ secrets.BUILD_CACHE_USER }}",
+                        "BUILD_CACHE_URL": "${{ secrets.BUILD_CACHE_URL }}",
+                        "GRADLE_PUBLISH_KEY": "${{ secrets.GRADLE_PLUGIN_KEY }}",
+                        "GRADLE_PUBLISH_SECRET": "${{ secrets.GRADLE_PLUGIN_SECRET }}"
+                    }
+                },
+                {
+                    "name": "Build",
+                    "id": "build",
+                    "run": "./gradlew build",
+                    "env": {
+                        "BUILD_CACHE_PASSWORD": "${{ secrets.BUILD_CACHE_PASSWORD }}",
+                        "BUILD_CACHE_USER": "${{ secrets.BUILD_CACHE_USER }}",
+                        "BUILD_CACHE_URL": "${{ secrets.BUILD_CACHE_URL }}",
+                        "GRADLE_PUBLISH_KEY": "${{ secrets.GRADLE_PLUGIN_KEY }}",
+                        "GRADLE_PUBLISH_SECRET": "${{ secrets.GRADLE_PLUGIN_SECRET }}"
+                    }
+                },
+                {
+                    "name": "Publish",
+                    "id": "publish",
+                    "run": "./gradlew publish",
+                    "env": {
+                        "BUILD_CACHE_PASSWORD": "${{ secrets.BUILD_CACHE_PASSWORD }}",
+                        "BUILD_CACHE_USER": "${{ secrets.BUILD_CACHE_USER }}",
+                        "BUILD_CACHE_URL": "${{ secrets.BUILD_CACHE_URL }}",
+                        "GRADLE_PUBLISH_KEY": "${{ secrets.GRADLE_PLUGIN_KEY }}",
+                        "GRADLE_PUBLISH_SECRET": "${{ secrets.GRADLE_PLUGIN_SECRET }}"
+                    }
+                },
+                {
+                    "run": "git push && git push --tags"
+                },
+                {
+                    "name": "Record Version",
+                    "id": "record_version",
+                    "run": "./gradlew recordVersion",
+                    "env": {
+                        "BUILD_CACHE_PASSWORD": "${{ secrets.BUILD_CACHE_PASSWORD }}",
+                        "BUILD_CACHE_USER": "${{ secrets.BUILD_CACHE_USER }}",
+                        "BUILD_CACHE_URL": "${{ secrets.BUILD_CACHE_URL }}",
+                        "GRADLE_PUBLISH_KEY": "${{ secrets.GRADLE_PLUGIN_KEY }}",
+                        "GRADLE_PUBLISH_SECRET": "${{ secrets.GRADLE_PLUGIN_SECRET }}"
+                    }
+                },
+                {
+                    "name": "Capture Recorded Version",
+                    "id": "record_version_capture_version",
+                    "run": "echo version=$(cat build/recordVersion.txt) >> \"$GITHUB_OUTPUT\""
+                },
+                {
+                    "name": "Submit Dependencies",
+                    "uses": "gradle/actions/dependency-submission@v4",
+                    "env": {
+                        "BUILD_CACHE_PASSWORD": "${{ secrets.BUILD_CACHE_PASSWORD }}",
+                        "BUILD_CACHE_USER": "${{ secrets.BUILD_CACHE_USER }}",
+                        "BUILD_CACHE_URL": "${{ secrets.BUILD_CACHE_URL }}",
+                        "GRADLE_PUBLISH_KEY": "${{ secrets.GRADLE_PLUGIN_KEY }}",
+                        "GRADLE_PUBLISH_SECRET": "${{ secrets.GRADLE_PLUGIN_SECRET }}"
+                    }
+                }
+            ],
+            "permissions": {
+                "contents": "write"
+            },
+            "outputs": {
+                "version": "${{ steps.record_version_capture_version.outputs.version }}"
+            }
+        }
+    }
+}

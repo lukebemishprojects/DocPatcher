@@ -32,7 +32,11 @@ public abstract class DocsExtractTask extends DefaultTask {
                 spec.into(getOutputDirectory());
                 if (getReadOnly().get()) {
                     spec.eachFile(fileCopyDetails -> {
-                        fileCopyDetails.setMode(fileCopyDetails.getMode() & ~0b010010010);
+                        fileCopyDetails.permissions(permissions -> {
+                            permissions.getUser().setWrite(false);
+                            permissions.getGroup().setWrite(false);
+                            permissions.getOther().setWrite(false);
+                        });
                     });
                 }
             });

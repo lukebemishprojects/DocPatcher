@@ -11,4 +11,76 @@ pluginManagement {
     }
 }
 
+plugins {
+    id 'dev.lukebemish.managedversioning' version '2.0.0-beta.5'
+    id 'dev.lukebemish.conventions' version '0.2.0-beta.2'
+    id 'com.gradle.plugin-publish' version '2.0.0' apply false
+}
+
+managedVersioning {
+    versionFile.set file('version.properties')
+    versionPRs()
+    versionSnapshots()
+
+    publishing {
+        mavenStaging()
+        mavenSnapshot()
+        mavenPullRequest()
+    }
+
+    gitHubActions {
+        release {
+            prettyName = 'Release'
+            workflowDispatch = true
+            gradleJob {
+                javaVersion.set '21'
+                name.set 'build'
+                buildCache()
+                setupGitUser()
+                readOnly = false
+                gradlew 'Tag Release', 'tagRelease'
+                gradlew 'Build', 'build'
+                gradlew 'Publish', 'publish'
+                push()
+                recordVersion 'Record Version', 'version'
+                dependencySubmission()
+                pluginPortal()
+            }
+        }
+        snapshot {
+            prettyName.set 'Snapshot'
+            workflowDispatch.set(true)
+            onBranches.add 'main'
+            gradleJob {
+                javaVersion.set '21'
+                name.set 'build'
+                buildCache()
+                cacheReadOnly = false
+                gradlew 'Build', 'build'
+                gradlew 'Publish', 'publish'
+                mavenSnapshot('github')
+            }
+        }
+        build_pr {
+            prettyName.set 'Build PR'
+            pullRequest.set(true)
+            gradleJob {
+                javaVersion.set '21'
+                name.set 'build'
+                gradlew 'Build', 'build'
+                gradlew 'Publish', 'publish'
+                pullRequestArtifact()
+            }
+        }
+        publish_pr {
+            prettyName.set 'Publish PR'
+            publishPullRequestAction(
+                'github',
+                "dev/lukebemish/docpatcher,dev/lukebemish/docpatcher/*",
+                'Build PR'
+            )
+        }
+    }
+}
+
 rootProject.name = 'docpatcher'
